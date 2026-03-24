@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import ExcelLikeTable from "../components/ExcelLikeTable";
 import { Download } from "lucide-react";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 import { piboService } from "../services/piboService";
+import CommonPagination from "../components/CommonPagination";
+import { exportToExcel } from "../utils/exportExcel";
+import CommonFilters from "../components/CommonFilters";
+import CommonButton from "../components/CommonButton";
 
 const STATE_MAP = {
   maharashtra: "Maharashtra",
@@ -72,7 +74,6 @@ const formatDate = (dateString) => {
 };
 
 const PiboTable = () => {
-
   const [activeTab, setActiveTab] = useState("current"); // 🔥 NEW
 
   const [search, setSearch] = useState("");
@@ -688,6 +689,44 @@ const PiboTable = () => {
     },
   ];
 
+  const filterConfig = [
+    {
+      type: "search",
+      name: "search",
+      value: search,
+      placeholder: "Search...",
+    },
+    {
+      type: "select",
+      name: "status",
+      value: statusFilter,
+      placeholder: "All Status",
+      options: ["Approved", "In Progress", "Rejected"],
+    },
+    {
+      type: "select",
+      name: "entityType",
+      value: entityTypeFilter,
+      placeholder: "All Entity",
+      options: ["Brand Owner", "Producer", "Importer"],
+    },
+  ];
+
+  const handleFilterChange = (name, value) => {
+    setPageIndex(0);
+
+    if (name === "search") setSearch(value);
+    if (name === "status") setStatusFilter(value);
+    if (name === "entityType") setEntityTypeFilter(value);
+  };
+
+  const handleReset = () => {
+    setSearch("");
+    setStatusFilter("");
+    setEntityTypeFilter("");
+    setPageIndex(0);
+  };
+
   const updatedData = dummydata.map((item) => ({
     ...item,
     state: extractState(item.address),
@@ -731,64 +770,50 @@ const PiboTable = () => {
     }
   };
 
-  const totalPages = Math.ceil(total / pageSize);
-
-  // 📊 export excel
-  const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "PIBO Data");
-
-    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const file = new Blob([buffer], { type: "application/octet-stream" });
-
-    saveAs(file, "pibo-data.xlsx");
-  };
-
   const formattedData = data.map((item) => ({
     ...item,
     created_on: formatDate(item.created_on),
   }));
+
+  const handleExport = () => {
+    exportToExcel({
+      data: formattedData,
+      fileName: "pibo-data.xlsx",
+      sheetName: "PIBO Data",
+    });
+  };
   return (
     <div className="">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-700">PIBO Dashboard</h2>
-
-        <button
-          onClick={exportExcel}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          <Download size={18} />
-          Export Excel
-        </button>
+        <CommonButton
+          label="Export Excel"
+          onClick={handleExport}
+          icon={Download}
+          variant="primary"
+        />
       </div>
 
       {/* 🔥 Tabs */}
       <div className="flex gap-4 mb-4">
-        <button
+        <CommonButton
+          label="All Data"
           onClick={() => {
             setActiveTab("current");
             setPageIndex(0);
           }}
-          className={`px-4 py-2 rounded ${
-            activeTab === "current" ? "bg-blue-600 text-white" : "bg-gray-200"
-          }`}
-        >
-          Current Data
-        </button>
+          variant={activeTab === "current" ? "primary" : "secondary"}
+        />
 
-        <button
+        <CommonButton
+          label="New Companies 🚀"
           onClick={() => {
             setActiveTab("new");
             setPageIndex(0);
           }}
-          className={`px-4 py-2 rounded ${
-            activeTab === "new" ? "bg-green-600 text-white" : "bg-gray-200"
-          }`}
-        >
-          New Companies 🚀
-        </button>
+          variant={activeTab === "new" ? "success" : "secondary"}
+        />
       </div>
 
       {/* Card */}
@@ -796,46 +821,11 @@ const PiboTable = () => {
         {/* Toolbar */}
         <div className="flex justify-between items-center p-4 border-b">
           <div className="flex gap-4">
-            {/* Search */}
-            <input
-              placeholder="Search..."
-              className="border px-3 py-2 rounded w-60"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPageIndex(0);
-              }}
+            <CommonFilters
+              filters={filterConfig}
+              onChange={handleFilterChange}
+              onReset={handleReset}
             />
-
-            {/* Status */}
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPageIndex(0);
-              }}
-              className="border px-3 py-2 rounded"
-            >
-              <option value="">All Status</option>
-              <option value="Approved">Approved</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-
-            {/* Entity */}
-            <select
-              value={entityTypeFilter}
-              onChange={(e) => {
-                setEntityTypeFilter(e.target.value);
-                setPageIndex(0);
-              }}
-              className="border px-3 py-2 rounded"
-            >
-              <option value="">All Entity</option>
-              <option value="Brand Owner">Brand Owner</option>
-              <option value="Producer">Producer</option>
-              <option value="Importer">Importer</option>
-            </select>
           </div>
 
           {/* Page Size */}
@@ -858,35 +848,17 @@ const PiboTable = () => {
           {loading ? (
             <div className="text-center py-10">Loading...</div>
           ) : (
-            <ExcelLikeTable columns={columns} data={formattedData} />
+            <ExcelLikeTable columns={columns} data={formattedData}  showActions={false} />
           )}
         </div>
 
         {/* Pagination */}
-        <div className="flex justify-between items-center p-4 border-t text-sm">
-          <span>
-            Showing {total === 0 ? 0 : pageIndex * pageSize + 1} to{" "}
-            {Math.min((pageIndex + 1) * pageSize, total)} of {total} entries
-          </span>
-
-          <div className="flex gap-2">
-            <button
-              disabled={pageIndex === 0}
-              onClick={() => setPageIndex(pageIndex - 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40"
-            >
-              Prev
-            </button>
-
-            <button
-              disabled={pageIndex + 1 >= totalPages}
-              onClick={() => setPageIndex(pageIndex + 1)}
-              className="px-3 py-1 border rounded disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <CommonPagination
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={(newPage) => setPageIndex(newPage)}
+        />
       </div>
     </div>
   );

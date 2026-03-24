@@ -1,4 +1,11 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect, useLayoutEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useRef,
+  useEffect,
+  useLayoutEffect,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   useReactTable,
@@ -41,7 +48,7 @@ function FilterPopover({ column, onClose, anchorRef, allData }) {
       return val === null || val === undefined ? "—" : String(val);
     });
     return [...new Set(raw)].sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
     );
   }, [allData, columnKey]);
 
@@ -49,10 +56,10 @@ function FilterPopover({ column, onClose, anchorRef, allData }) {
     () =>
       search.trim()
         ? uniqueValues.filter((v) =>
-            v.toLowerCase().includes(search.toLowerCase())
+            v.toLowerCase().includes(search.toLowerCase()),
           )
         : uniqueValues,
-    [uniqueValues, search]
+    [uniqueValues, search],
   );
 
   const [selected, setSelected] = useState(() => {
@@ -166,16 +173,12 @@ function FilterPopover({ column, onClose, anchorRef, allData }) {
             allFilteredSelected
               ? "bg-blue-600 border-blue-600"
               : someFilteredSelected
-              ? "bg-blue-200 border-blue-400"
-              : "border-gray-300"
+                ? "bg-blue-200 border-blue-400"
+                : "border-gray-300"
           }`}
         >
           {allFilteredSelected && (
-            <svg
-              className="w-3 h-3 text-white"
-              viewBox="0 0 12 12"
-              fill="none"
-            >
+            <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
               <path
                 d="M2 6l3 3 5-5"
                 stroke="currentColor"
@@ -255,7 +258,7 @@ function FilterPopover({ column, onClose, anchorRef, allData }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -283,7 +286,11 @@ function TableHeaderCell({
   const hasFilter = !!filterValue;
   const isDragging = dragState.draggedId === header.id;
   const isDropTarget = dragState.dropTargetId === header.id;
-  const headerBg = isDropTarget ? "#eff6ff" : isDragging ? "#e0e7ff" : "#f3f4f6";
+  const headerBg = isDropTarget
+    ? "#eff6ff"
+    : isDragging
+      ? "#e0e7ff"
+      : "#f3f4f6";
 
   return (
     <th
@@ -308,9 +315,7 @@ function TableHeaderCell({
         zIndex: isSticky ? (left === 0 ? 25 : 15) : 12,
         ...(isSticky && {
           left,
-          boxShadow: isLastSticky
-            ? "4px 0 8px -2px rgba(0,0,0,0.12)"
-            : "none",
+          boxShadow: isLastSticky ? "4px 0 8px -2px rgba(0,0,0,0.12)" : "none",
         }),
       }}
     >
@@ -330,7 +335,9 @@ function TableHeaderCell({
           className={`truncate flex-1 min-w-0 text-xs ${
             canSort ? "cursor-pointer hover:text-blue-600" : ""
           }`}
-          onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
+          onClick={
+            canSort ? header.column.getToggleSortingHandler() : undefined
+          }
           title={
             typeof header.column.columnDef.header === "string"
               ? header.column.columnDef.header
@@ -339,10 +346,7 @@ function TableHeaderCell({
         >
           {header.isPlaceholder
             ? null
-            : flexRender(
-                header.column.columnDef.header,
-                header.getContext()
-              )}
+            : flexRender(header.column.columnDef.header, header.getContext())}
         </span>
 
         {canSort && (
@@ -408,10 +412,23 @@ function TableHeaderCell({
 }
 
 /** Stable wrapper for inline-edit input/select. */
-function InlineEditCell({ value, rowId, columnKey, columnDef, onChange, onClick, onFocus, disabled }) {
+function InlineEditCell({
+  value,
+  rowId,
+  columnKey,
+  columnDef,
+  onChange,
+  onClick,
+  onFocus,
+  disabled,
+}) {
   const valStr = value == null ? "" : String(value);
   const isDisabled = Boolean(disabled);
-  if (columnDef?.editType === "select" && Array.isArray(columnDef?.editOptions) && columnDef.editOptions.length > 0) {
+  if (
+    columnDef?.editType === "select" &&
+    Array.isArray(columnDef?.editOptions) &&
+    columnDef.editOptions.length > 0
+  ) {
     return (
       <select
         data-inline-edit="1"
@@ -426,13 +443,17 @@ function InlineEditCell({ value, rowId, columnKey, columnDef, onChange, onClick,
         disabled={isDisabled}
       >
         {columnDef.editOptions.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
         ))}
       </select>
     );
   }
   const isNumber = columnDef?.editType === "number";
-  const isNumericOnly = columnDef?.editInputType === "tel" || columnDef?.editInputType === "numeric";
+  const isNumericOnly =
+    columnDef?.editInputType === "tel" ||
+    columnDef?.editInputType === "numeric";
   return (
     <input
       data-inline-edit="1"
@@ -489,6 +510,7 @@ const ExcelLikeTable = ({
   onFilteredCountChange,
   getRowStyle,
   tableMaxHeight,
+  showActions = true,
 }) => {
   // Keep latest edit props in refs so column definitions stay stable while typing.
   const editingRowIdRef = useRef(editingRowId);
@@ -507,7 +529,10 @@ const ExcelLikeTable = ({
   // to the last active edit cell (rowId + columnKey).
   const activeEditCellRef = useRef(null); // { rowId: string, columnKey: string }
   const setActiveEditCell = useCallback((rowId, columnKey) => {
-    activeEditCellRef.current = { rowId: String(rowId), columnKey: String(columnKey) };
+    activeEditCellRef.current = {
+      rowId: String(rowId),
+      columnKey: String(columnKey),
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -530,9 +555,14 @@ const ExcelLikeTable = ({
         el.focus();
       }
       // Put caret at end for text inputs.
-      if (typeof el.setSelectionRange === "function" && typeof el.value === "string") {
+      if (
+        typeof el.setSelectionRange === "function" &&
+        typeof el.value === "string"
+      ) {
         const len = el.value.length;
-        try { el.setSelectionRange(len, len); } catch {}
+        try {
+          el.setSelectionRange(len, len);
+        } catch {}
       }
     });
     return () => window.cancelAnimationFrame(raf);
@@ -548,7 +578,7 @@ const ExcelLikeTable = ({
 
   const columnMap = useMemo(
     () => Object.fromEntries(columns.map((c) => [c.key, c])),
-    [columns]
+    [columns],
   );
 
   const defaultOrder = useMemo(() => columns.map((c) => c.key), [columns]);
@@ -558,7 +588,10 @@ const ExcelLikeTable = ({
     const prevSet = new Set(columnOrderLocal);
     const added = defaultOrder.filter((k) => !prevSet.has(k));
     if (added.length > 0) {
-      setColumnOrderLocal((prev) => [...prev.filter((k) => defaultOrder.includes(k)), ...added]);
+      setColumnOrderLocal((prev) => [
+        ...prev.filter((k) => defaultOrder.includes(k)),
+        ...added,
+      ]);
     }
   }, [defaultOrder.join(",")]);
 
@@ -583,11 +616,11 @@ const ExcelLikeTable = ({
 
   const dataColumnIds = useMemo(
     () => [...orderedStickyKeys, ...scrollableKeys],
-    [orderedStickyKeys, scrollableKeys]
+    [orderedStickyKeys, scrollableKeys],
   );
 
   const showDragForColumn = Boolean(
-    (onColumnOrderChange || enableColumnFilter || enableSort) && true
+    (onColumnOrderChange || enableColumnFilter || enableSort) && true,
   );
 
   const handleHeaderDragStart = useCallback(
@@ -597,17 +630,20 @@ const ExcelLikeTable = ({
       e.dataTransfer.effectAllowed = "move";
       setDragState({ draggedId: headerId, dropTargetId: null });
     },
-    [dataColumnIds]
+    [dataColumnIds],
   );
 
-  const handleHeaderDragOver = useCallback((e, headerId) => {
-    if (!dataColumnIds.includes(headerId)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragState((prev) =>
-      prev.draggedId ? { ...prev, dropTargetId: headerId } : prev
-    );
-  }, [dataColumnIds]);
+  const handleHeaderDragOver = useCallback(
+    (e, headerId) => {
+      if (!dataColumnIds.includes(headerId)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragState((prev) =>
+        prev.draggedId ? { ...prev, dropTargetId: headerId } : prev,
+      );
+    },
+    [dataColumnIds],
+  );
 
   const handleHeaderDrop = useCallback(
     (e, headerId) => {
@@ -632,7 +668,7 @@ const ExcelLikeTable = ({
       }
       setDragState({ draggedId: null, dropTargetId: null });
     },
-    [onColumnOrderChange, dragState.draggedId, dataColumnIds]
+    [onColumnOrderChange, dragState.draggedId, dataColumnIds],
   );
 
   const handleHeaderDragEnd = useCallback(() => {
@@ -640,8 +676,8 @@ const ExcelLikeTable = ({
   }, []);
 
   const getCellContent = useCallback(
-    (key, row) => (renderCell ? renderCell(key, row) : row[key] ?? "—"),
-    [renderCell]
+    (key, row) => (renderCell ? renderCell(key, row) : (row[key] ?? "—")),
+    [renderCell],
   );
 
   const tableColumns = useMemo(() => {
@@ -655,15 +691,24 @@ const ExcelLikeTable = ({
             ? displayRowsRef.current
             : table.getRowModel().rows;
           const currentData = rows.map((r) => r.original);
-          const selectableData = currentData.filter(row => !(row.source === "EPR" || row.data_source === "EPR" || row._sourceType === "epr"));
-          
+          const selectableData = currentData.filter(
+            (row) =>
+              !(
+                row.source === "EPR" ||
+                row.data_source === "EPR" ||
+                row._sourceType === "epr"
+              ),
+          );
+
           return (
             <input
               type="checkbox"
               onChange={(e) => onSelectAll?.(e.target.checked, selectableData)}
               checked={
                 selectableData.length > 0 &&
-                selectableData.every((row) => selectedIds.includes(getRowId(row)))
+                selectableData.every((row) =>
+                  selectedIds.includes(getRowId(row)),
+                )
               }
             />
           );
@@ -677,63 +722,86 @@ const ExcelLikeTable = ({
         meta: { sticky: true },
         cell: ({ row }) => {
           const id = getRowId(row.original);
-          const isEPR = row.original.source === "EPR" || row.original.data_source === "EPR" || row.original._sourceType === "epr";
+          const isEPR =
+            row.original.source === "EPR" ||
+            row.original.data_source === "EPR" ||
+            row.original._sourceType === "epr";
           return (
             <input
               type="checkbox"
               checked={selectedIds.includes(id)}
               disabled={isEPR}
-              onChange={(e) => onSelectRow?.(id, e.target.checked, row.original)}
-              className={isEPR ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+              onChange={(e) =>
+                onSelectRow?.(id, e.target.checked, row.original)
+              }
+              className={
+                isEPR ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+              }
             />
           );
         },
       });
     }
 
-    defs.push({
-      id: "__action__",
-      header: "Action",
-      size: ACTION_COLUMN_WIDTH,
-      minSize: ACTION_COLUMN_WIDTH,
-      maxSize: ACTION_COLUMN_WIDTH,
-      enableResizing: false,
-      enableSorting: false,
-      enableColumnFilter: false,
-      meta: { sticky: true },
-      cell: ({ row }) => {
-        const rowId = getRowId(row.original);
-        const currentEditingRowId = editingRowIdRef.current;
-        const isEditing = currentEditingRowId != null && String(rowId) === String(currentEditingRowId);
-        const save = onSaveEditRef.current;
-        const cancel = onCancelEditRef.current;
-        if (isEditing && typeof save === "function" && typeof cancel === "function") {
+    if (showActions) {
+      defs.push({
+        id: "__action__",
+        header: "Action",
+        size: ACTION_COLUMN_WIDTH,
+        minSize: ACTION_COLUMN_WIDTH,
+        maxSize: ACTION_COLUMN_WIDTH,
+        enableResizing: false,
+        enableSorting: false,
+        enableColumnFilter: false,
+        meta: { sticky: true },
+        cell: ({ row }) => {
+          const rowId = getRowId(row.original);
+          const currentEditingRowId = editingRowIdRef.current;
+          const isEditing =
+            currentEditingRowId != null &&
+            String(rowId) === String(currentEditingRowId);
+
+          const save = onSaveEditRef.current;
+          const cancel = onCancelEditRef.current;
+
+          if (
+            isEditing &&
+            typeof save === "function" &&
+            typeof cancel === "function"
+          ) {
+            return (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    cancel();
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    save();
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            );
+          }
+
           return (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); cancel(); }}
-                title="Discard"
-                className="p-1.5 rounded text-red-600 hover:bg-red-50 border border-red-200 hover:border-red-300 transition-colors"
-              >
-                <X size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); save(); }}
-                title="Save"
-                className="p-1.5 rounded text-green-600 hover:bg-green-50 border border-green-200 hover:border-green-300 transition-colors"
-              >
-                <Check size={16} />
-              </button>
-            </div>
+            <ActionMenu
+              row={row.original}
+              onView={onView}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
           );
-        }
-        return (
-          <ActionMenu row={row.original} onView={onView} onEdit={onEdit} onDelete={onDelete} />
-        );
-      },
-    });
+        },
+      });
+    }
 
     orderedStickyKeys.forEach((k) => {
       const col = columnMap[k];
@@ -750,12 +818,21 @@ const ExcelLikeTable = ({
         cell: ({ row }) => {
           const rowId = getRowId(row.original);
           const currentEditingRowId = editingRowIdRef.current;
-          const isEditing = currentEditingRowId != null && String(rowId) === String(currentEditingRowId);
+          const isEditing =
+            currentEditingRowId != null &&
+            String(rowId) === String(currentEditingRowId);
           const onFieldChange = onEditingFieldChangeRef.current;
           const draft = editingDraftRef.current || {};
-          if (isEditing && col?.editable && typeof onFieldChange === "function") {
+          if (
+            isEditing &&
+            col?.editable &&
+            typeof onFieldChange === "function"
+          ) {
             const value = draft[k] !== undefined ? draft[k] : row.original[k];
-            const editDisabled = typeof col.editDisabled === "function" ? col.editDisabled(row.original, draft) : false;
+            const editDisabled =
+              typeof col.editDisabled === "function"
+                ? col.editDisabled(row.original, draft)
+                : false;
             return (
               <InlineEditCell
                 key={`edit-${rowId}-${k}`}
@@ -800,12 +877,21 @@ const ExcelLikeTable = ({
         cell: ({ row }) => {
           const rowId = getRowId(row.original);
           const currentEditingRowId = editingRowIdRef.current;
-          const isEditing = currentEditingRowId != null && String(rowId) === String(currentEditingRowId);
+          const isEditing =
+            currentEditingRowId != null &&
+            String(rowId) === String(currentEditingRowId);
           const onFieldChange = onEditingFieldChangeRef.current;
           const draft = editingDraftRef.current || {};
-          if (isEditing && col?.editable && typeof onFieldChange === "function") {
+          if (
+            isEditing &&
+            col?.editable &&
+            typeof onFieldChange === "function"
+          ) {
             const value = draft[k] !== undefined ? draft[k] : row.original[k];
-            const editDisabled = typeof col.editDisabled === "function" ? col.editDisabled(row.original, draft) : false;
+            const editDisabled =
+              typeof col.editDisabled === "function"
+                ? col.editDisabled(row.original, draft)
+                : false;
             return (
               <InlineEditCell
                 key={`edit-${rowId}-${k}`}
@@ -880,7 +966,7 @@ const ExcelLikeTable = ({
     pagination && pagination.pageSize > 0
       ? fullFilteredRows.slice(
           pagination.pageIndex * pagination.pageSize,
-          (pagination.pageIndex + 1) * pagination.pageSize
+          (pagination.pageIndex + 1) * pagination.pageSize,
         )
       : fullFilteredRows;
   displayRowsRef.current = displayRows;
@@ -893,7 +979,10 @@ const ExcelLikeTable = ({
 
   const currentData = displayRows;
   const totalSize = table.getTotalSize();
-  const stickyCount = (enableBulkSelect ? 1 : 0) + 1 + orderedStickyKeys.length;
+  const stickyCount =
+    (enableBulkSelect ? 1 : 0) +
+    (showActions ? 1 : 0) +
+    orderedStickyKeys.length;
   const hasActiveFilters =
     enableColumnFilter && table.getState().columnFilters?.length > 0;
   const filteredCount = fullFilteredRows.length;
@@ -952,27 +1041,27 @@ const ExcelLikeTable = ({
         className="flex-1 min-h-0 overflow-auto"
         style={{ maxHeight: tableMaxHeight ? "100%" : undefined }}
       >
-      <table
-        className="text-sm border-separate border-spacing-0"
-        style={{
-          tableLayout: "fixed",
-          width: totalSize,
-          minWidth: "100%",
-        }}
-      >
-        <colgroup>
-          {table.getHeaderGroups()[0].headers.map((header) => (
-            <col
-              key={header.id}
-              style={{
-                width: header.getSize(),
-                minWidth: header.column.columnDef.minSize,
-                maxWidth: header.column.columnDef.maxSize,
-              }}
-            />
-          ))}
-        </colgroup>
-        <thead className="bg-gray-100">
+        <table
+          className="text-sm border-separate border-spacing-0"
+          style={{
+            tableLayout: "fixed",
+            width: totalSize,
+            minWidth: "100%",
+          }}
+        >
+          <colgroup>
+            {table.getHeaderGroups()[0].headers.map((header) => (
+              <col
+                key={header.id}
+                style={{
+                  width: header.getSize(),
+                  minWidth: header.column.columnDef.minSize,
+                  maxWidth: header.column.columnDef.maxSize,
+                }}
+              />
+            ))}
+          </colgroup>
+          <thead className="bg-gray-100">
             {table.getHeaderGroups().map((headerGroup) => {
               let stickyLeft = 0;
               let stickyIndex = 0;
@@ -983,7 +1072,8 @@ const ExcelLikeTable = ({
                     const isSticky = meta.sticky;
                     const left = isSticky ? stickyLeft : undefined;
                     if (isSticky) stickyLeft += header.getSize();
-                    const isLastSticky = isSticky && stickyIndex === stickyCount - 1;
+                    const isLastSticky =
+                      isSticky && stickyIndex === stickyCount - 1;
                     if (isSticky) stickyIndex++;
                     const isDataColumn = dataColumnIds.includes(header.id);
                     const showDragHandle = showDragForColumn && isDataColumn;
@@ -1038,14 +1128,17 @@ const ExcelLikeTable = ({
                       if (onRowDoubleClick) onRowDoubleClick(row.original);
                     }}
                     role={onRowDoubleClick ? "button" : undefined}
-                    title={onRowDoubleClick ? "Double-click to edit" : undefined}
+                    title={
+                      onRowDoubleClick ? "Double-click to edit" : undefined
+                    }
                   >
                     {row.getVisibleCells().map((cell) => {
                       const meta = cell.column.columnDef.meta || {};
                       const isSticky = meta.sticky;
                       const left = isSticky ? stickyLeft : undefined;
                       if (isSticky) stickyLeft += cell.column.getSize();
-                      const isLastSticky = isSticky && stickyIndex === stickyCount - 1;
+                      const isLastSticky =
+                        isSticky && stickyIndex === stickyCount - 1;
                       if (isSticky) stickyIndex++;
                       return (
                         <td
@@ -1072,7 +1165,10 @@ const ExcelLikeTable = ({
                           }
                         >
                           <div className="overflow-hidden text-ellipsis whitespace-nowrap max-w-full">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
                           </div>
                         </td>
                       );
@@ -1152,7 +1248,10 @@ function ActionMenu({ row, onView, onEdit, onDelete }) {
     };
   }, [open, closeMenu]);
 
-  const isEPR = row.source === "EPR" || row.data_source === "EPR" || row._sourceType === "epr";
+  const isEPR =
+    row.source === "EPR" ||
+    row.data_source === "EPR" ||
+    row._sourceType === "epr";
 
   const menuContent = open && (
     <div
@@ -1163,7 +1262,10 @@ function ActionMenu({ row, onView, onEdit, onDelete }) {
       {onView && (
         <button
           type="button"
-          onClick={() => { onView(row); closeMenu(); }}
+          onClick={() => {
+            onView(row);
+            closeMenu();
+          }}
           className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 whitespace-nowrap"
         >
           <Eye size={16} /> View
@@ -1172,7 +1274,10 @@ function ActionMenu({ row, onView, onEdit, onDelete }) {
       {!isEPR && onEdit && (
         <button
           type="button"
-          onClick={() => { onEdit(row); closeMenu(); }}
+          onClick={() => {
+            onEdit(row);
+            closeMenu();
+          }}
           className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 whitespace-nowrap"
         >
           <Edit2 size={16} /> Edit
@@ -1181,7 +1286,10 @@ function ActionMenu({ row, onView, onEdit, onDelete }) {
       {!isEPR && onDelete && (
         <button
           type="button"
-          onClick={() => { onDelete(row); closeMenu(); }}
+          onClick={() => {
+            onDelete(row);
+            closeMenu();
+          }}
           className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 whitespace-nowrap"
         >
           <Trash2 size={16} /> Delete

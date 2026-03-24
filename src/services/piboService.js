@@ -9,5 +9,8 @@ export const piboService = {
     getNewCompaniesData: (params) => {
     return DataService.get(API_ENDPOINTS.PIBO.GET_NEW_COMPANIES, params);
   },
+      getPiboRegistered: (params) => {
+    return DataService.get(API_ENDPOINTS.PIBO.GET_PIBO_RECORDS, params);
+  },
 };
 

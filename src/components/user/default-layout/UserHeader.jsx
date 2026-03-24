@@ -1,8 +1,5 @@
 import React from "react";
-import {
-  Menu,
-  Bell,
-} from "lucide-react";
+import { Menu, Bell } from "lucide-react";
 
 const UserHeader = React.memo(({ toggleSidebar }) => {
   return (
@@ -20,7 +17,7 @@ const UserHeader = React.memo(({ toggleSidebar }) => {
           <button className="flex items-center justify-center w-10 h-10 transition rounded-full bg-gray-100 hover:bg-gray-200">
             <Bell size={18} className="text-gray-600" />
           </button>
-          <div className="hidden sm:flex items-center gap-3">
+          {/* <div className="hidden sm:flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-300 overflow-hidden flex items-center justify-center">
               <img src="" alt="User" className="w-full h-full object-cover" />
             </div>
@@ -28,7 +25,7 @@ const UserHeader = React.memo(({ toggleSidebar }) => {
               <p className="text-xs text-gray-500">Hello</p>
               <p className="text-sm font-medium text-gray-800">Adriana</p>
             </div>
-          </div>
+          </div> */}
         </div>
       </header>
     </>
