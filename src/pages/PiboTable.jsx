@@ -58,6 +58,7 @@ const extractState = (address) => {
   // ❌ fallback
   return "Unknown";
 };
+
 const formatDate = (dateString) => {
   if (!dateString) return "-";
 

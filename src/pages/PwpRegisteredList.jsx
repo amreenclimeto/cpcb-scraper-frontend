@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import ExcelLikeTable from "../components/ExcelLikeTable";
 import { Download } from "lucide-react";
-import { piboService } from "../services/piboService";
 import CommonPagination from "../components/CommonPagination";
 import { exportToExcel } from "../utils/exportExcel";
 import CommonFilters from "../components/CommonFilters";
 import CommonButton from "../components/CommonButton";
+import { pwpService } from "../services/pwpService";
 
 
 const formatDate = (dateString) => {
@@ -40,8 +40,10 @@ const PwpRegisteredList = () => {
   const columns = [
     { key: "company_id", label: "Company ID", minWidth: 130 },
     { key: "company", label: "Company Name", minWidth: 250 },
+    { key: "state", label: "State", minWidth: 200 },
     { key: "address", label: "Address", minWidth: 300 },
-    { key: "entity_type", label: "Entity Type", minWidth: 130 },
+    { key: "category", label: "Category", minWidth: 130 },
+    { key: "class", label: "Class", minWidth: 150 },
     { key: "status", label: "Status", minWidth: 100 },
     { key: "first_seen_at", label: "First Seen At", minWidth: 150 },
   ];
@@ -77,12 +79,7 @@ const PwpRegisteredList = () => {
     setPageIndex(0);
   };
 
-  // 🔥 API CALL
-  useEffect(() => {
-    fetchData();
-  }, [pageIndex, pageSize, entityTypeFilter, statusFilter, search, activeTab]);
-
-const fetchData = async () => {
+  const fetchData = async () => {
   if (loading) return;
 
   try {
@@ -91,19 +88,15 @@ const fetchData = async () => {
     const params = {
       page: pageIndex + 1,
       limit: pageSize,
-      entity_type: entityTypeFilter,
-      status: statusFilter,
       search,
+      is_active: true, // ✅ recommended
     };
 
-    // 🔥 KEY LOGIC
     if (activeTab === "new") {
       params.is_new = true;
     }
 
-    // current tab me is_new mat bhejo → ALL data aayega
-
-    const res = await piboService.getPiboRegistered(params);
+    const res = await pwpService.getPwpData(params);
 
     setData(res?.data?.records || []);
     setTotal(res?.data?.total || 0);
@@ -114,6 +107,13 @@ const fetchData = async () => {
     setLoading(false);
   }
 };
+
+  // 🔥 API CALL
+  useEffect(() => {
+    fetchData();
+  }, [pageIndex, pageSize, entityTypeFilter, statusFilter, search, activeTab]);
+
+
   const formattedData = data.map((item) => ({
     ...item,
     created_on: formatDate(item.created_on),

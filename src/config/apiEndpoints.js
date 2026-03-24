@@ -7,5 +7,5 @@ export const API_ENDPOINTS = {
     GET_PIBO_RECORDS: "/pibo/records",
     
   },
-  GET_PWP_RECORDS: "/pwp/new-companies",
+  GET_PWP_RECORDS: "/pwp/records",
 };
