@@ -727,13 +727,6 @@ const PiboTable = () => {
     setPageIndex(0);
   };
 
-  const updatedData = dummydata.map((item) => ({
-    ...item,
-    state: extractState(item.address),
-  }));
-
-  console.log(updatedData, "updatedData");
-
   // 🔥 API CALL
   useEffect(() => {
     fetchData();

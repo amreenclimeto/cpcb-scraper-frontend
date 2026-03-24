@@ -34,7 +34,6 @@ const PiboRegisteredList = () => {
   const [pageSize, setPageSize] = useState(5);
   
   const [data, setData] = useState([]);
-  console.log(data,"bhaii data aa rh h  ")
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -83,7 +82,6 @@ const PiboRegisteredList = () => {
     fetchData();
   }, [pageIndex, pageSize, entityTypeFilter, statusFilter, search, activeTab]);
 
-  console.log("bhaii api ku nhi chal rhi h ")
 const fetchData = async () => {
   if (loading) return;
 
@@ -106,7 +104,6 @@ const fetchData = async () => {
     // current tab me is_new mat bhejo → ALL data aayega
 
     const res = await piboService.getPiboRegistered(params);
-  console.log(res,"bhaii data aa rh h  ")
 
     setData(res?.data?.records || []);
     setTotal(res?.data?.total || 0);
