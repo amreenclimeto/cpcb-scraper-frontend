@@ -6,36 +6,22 @@ import { exportToExcel } from "../utils/exportExcel";
 import CommonFilters from "../components/CommonFilters";
 import CommonButton from "../components/CommonButton";
 import { pwpService } from "../services/pwpService";
-
-
-const formatDate = (dateString) => {
-  if (!dateString) return "-";
-
-  const date = new Date(dateString);
-
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-};
+import { formatDate } from "../utils/formatDate";
 
 const PwpRegisteredList = () => {
   const [activeTab, setActiveTab] = useState("current"); // 🔥 NEW
-  
+
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [entityTypeFilter, setEntityTypeFilter] = useState("");
-  
+
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(5);
-  
+
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const columns = [
     { key: "company_id", label: "Company ID", minWidth: 130 },
@@ -56,11 +42,10 @@ const PwpRegisteredList = () => {
       placeholder: "Search...",
     },
     {
-      type: "select",
-      name: "entityType",
-      value: entityTypeFilter,
-      placeholder: "All Entity",
-      options: ["Brand Owner", "Producer", "Importer"],
+      type: "date-range",
+      name: "dateRange",
+      from: fromDate,
+      to: toDate,
     },
   ];
 
@@ -68,63 +53,99 @@ const PwpRegisteredList = () => {
     setPageIndex(0);
 
     if (name === "search") setSearch(value);
-    if (name === "status") setStatusFilter(value);
-    if (name === "entityType") setEntityTypeFilter(value);
-  };
 
+    if (name === "date") {
+      setFromDate("");
+      setToDate("");
+    }
+
+    if (name === "dateRange") {
+      setFromDate(value.from);
+      setToDate(value.to);
+    }
+  };
   const handleReset = () => {
     setSearch("");
-    setStatusFilter("");
-    setEntityTypeFilter("");
     setPageIndex(0);
+    setFromDate("");
+    setToDate("");
   };
 
   const fetchData = async () => {
-  if (loading) return;
+    if (loading) return;
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const params = {
-      page: pageIndex + 1,
-      limit: pageSize,
-      search,
-      is_active: true, // ✅ recommended
-    };
+      const params = {
+        page: pageIndex + 1,
+        limit: pageSize,
+        search,
+        is_active: true, // ✅ recommended
+      };
 
-    if (activeTab === "new") {
-      params.is_new = true;
+      if (activeTab === "new") {
+        params.is_new = true;
+      }
+
+      if (fromDate && toDate) {
+        params.from_date = fromDate;
+        params.to_date = toDate;
+      }
+      const res = await pwpService.getPwpData(params);
+
+      setData(res?.data?.records || []);
+      setTotal(res?.data?.total || 0);
+    } catch (error) {
+      console.error("API Error:", error);
+    } finally {
+      setLoading(false);
     }
-
-    const res = await pwpService.getPwpData(params);
-
-    setData(res?.data?.records || []);
-    setTotal(res?.data?.total || 0);
-
-  } catch (error) {
-    console.error("API Error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // 🔥 API CALL
   useEffect(() => {
     fetchData();
-  }, [pageIndex, pageSize, entityTypeFilter, statusFilter, search, activeTab]);
-
+  }, [pageIndex, pageSize, search, activeTab, fromDate, toDate]);
 
   const formattedData = data.map((item) => ({
     ...item,
-    created_on: formatDate(item.created_on),
+    first_seen_at: formatDate(item.first_seen_at),
   }));
 
-  const handleExport = () => {
-    exportToExcel({
-      data: formattedData,
-      fileName: "pibo-data.xlsx",
-      sheetName: "PIBO Data",
-    });
+  const handleExport = async () => {
+    try {
+      const params = {
+        search,
+        is_active: true,
+      };
+
+      if (activeTab === "new") {
+        params.is_new = true;
+      }
+
+      if (fromDate && toDate) {
+        params.from_date = fromDate;
+        params.to_date = toDate;
+      }
+
+      // 🔥 call export API (no pagination)
+      const res = await pwpService.exportPwpData(params);
+      const exportData = res?.data || [];
+
+      const formatted = exportData.map((item) => ({
+        ...item,
+        first_seen_at: formatDate(item.first_seen_at),
+      }));
+
+      exportToExcel({
+        data: formatted,
+        fileName: "pwp-data.xlsx",
+        sheetName: "PWP Data",
+      });
+    } catch (err) {
+      console.error("Export Error:", err);
+    }
   };
   return (
     <div className="">
@@ -192,7 +213,11 @@ const PwpRegisteredList = () => {
           {loading ? (
             <div className="text-center py-10">Loading...</div>
           ) : (
-            <ExcelLikeTable columns={columns} data={formattedData}  showActions={false} />
+            <ExcelLikeTable
+              columns={columns}
+              data={formattedData}
+              showActions={false}
+            />
           )}
         </div>
 
@@ -209,4 +234,3 @@ const PwpRegisteredList = () => {
 };
 
 export default PwpRegisteredList;
-

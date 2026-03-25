@@ -5,7 +5,9 @@ export const API_ENDPOINTS = {
     GET_NEW_COMPANIES: "pibo/new-after-baseline",
     GET_CHANGE_STATUS: "/pibo/status-changes",
     GET_PIBO_RECORDS: "/pibo/records",
+    EXPORT_PIBO_RECORDS: "/pibo/export",
     
   },
   GET_PWP_RECORDS: "/pwp/records",
+  EXPORT_PWP_RECORDS: "/pwp/export",
 };

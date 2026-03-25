@@ -6,9 +6,11 @@ const CommonFilters = ({
   onReset,
 }) => {
   return (
-    <div className="flex gap-4 flex-wrap">
+    <div className="flex gap-4 flex-wrap items-center">
       
       {filters.map((filter) => {
+
+        // 🔍 SEARCH
         if (filter.type === "search") {
           return (
             <input
@@ -23,6 +25,7 @@ const CommonFilters = ({
           );
         }
 
+        // 🔽 SELECT
         if (filter.type === "select") {
           return (
             <select
@@ -43,13 +46,64 @@ const CommonFilters = ({
           );
         }
 
+        // 📅 SINGLE DATE
+        if (filter.type === "date") {
+          return (
+            <input
+              key={filter.name}
+              type="date"
+              value={filter.value}
+              onChange={(e) =>
+                onChange(filter.name, e.target.value)
+              }
+              className="border px-3 py-2 rounded"
+            />
+          );
+        }
+
+        // 📅 RANGE DATE (from → to)
+        if (filter.type === "date-range") {
+          return (
+            <div key={filter.name} className="flex gap-2 items-center">
+              
+              {/* From */}
+              <input
+                type="date"
+                value={filter.from}
+                onChange={(e) =>
+                  onChange(filter.name, {
+                    from: e.target.value,
+                    to: filter.to,
+                  })
+                }
+                className="border px-2 py-2 rounded"
+              />
+
+              <span className="text-gray-500">to</span>
+
+              {/* To */}
+              <input
+                type="date"
+                value={filter.to}
+                onChange={(e) =>
+                  onChange(filter.name, {
+                    from: filter.from,
+                    to: e.target.value,
+                  })
+                }
+                className="border px-2 py-2 rounded"
+              />
+            </div>
+          );
+        }
+
         return null;
       })}
 
-      {/* Reset Button */}
+      {/* 🔄 Reset */}
       <button
         onClick={onReset}
-        className="px-3 py-2 bg-gray-200 rounded"
+        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
       >
         Reset
       </button>

@@ -6,44 +6,31 @@ import CommonPagination from "../components/CommonPagination";
 import { exportToExcel } from "../utils/exportExcel";
 import CommonFilters from "../components/CommonFilters";
 import CommonButton from "../components/CommonButton";
-
-
-const formatDate = (dateString) => {
-  if (!dateString) return "-";
-
-  const date = new Date(dateString);
-
-  return date.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-};
+import { formatDate } from "../utils/formatDate";
 
 const PiboRegisteredList = () => {
   const [activeTab, setActiveTab] = useState("current"); // 🔥 NEW
-  
+
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [entityTypeFilter, setEntityTypeFilter] = useState("");
-  
+
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(5);
-  
+
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
   const columns = [
-    { key: "company_id", label: "Company ID", minWidth: 130 },
-    { key: "company", label: "Company Name", minWidth: 250 },
-    { key: "address", label: "Address", minWidth: 300 },
-    { key: "entity_type", label: "Entity Type", minWidth: 130 },
-    { key: "status", label: "Status", minWidth: 100 },
-    { key: "first_seen_at", label: "First Seen At", minWidth: 150 },
+    { key: "company_id", label: "Company ID", minWidth: 50 },
+    { key: "company", label: "Company Name", minWidth: 220 },
+    { key: "address", label: "Address", minWidth: 280 },
+    { key: "entity_type", label: "Entity Type", minWidth: 80 },
+    { key: "status", label: "Status", minWidth: 60 },
+    { key: "first_seen_at", label: "First Seen At", minWidth: 140 },
   ];
 
   const filterConfig = [
@@ -60,77 +47,128 @@ const PiboRegisteredList = () => {
       placeholder: "All Entity",
       options: ["Brand Owner", "Producer", "Importer"],
     },
+    {
+      type: "date-range",
+      name: "dateRange",
+      from: fromDate,
+      to: toDate,
+    },
   ];
 
   const handleFilterChange = (name, value) => {
     setPageIndex(0);
 
     if (name === "search") setSearch(value);
-    if (name === "status") setStatusFilter(value);
     if (name === "entityType") setEntityTypeFilter(value);
+    if (name === "dateRange") {
+      setFromDate(value.from);
+      setToDate(value.to);
+    }
   };
 
   const handleReset = () => {
     setSearch("");
-    setStatusFilter("");
     setEntityTypeFilter("");
     setPageIndex(0);
+    setFromDate("");
+    setToDate("");
   };
 
   // 🔥 API CALL
   useEffect(() => {
     fetchData();
-  }, [pageIndex, pageSize, entityTypeFilter, statusFilter, search, activeTab]);
+  }, [
+    pageIndex,
+    pageSize,
+    entityTypeFilter,
+    search,
+    activeTab,
+    fromDate,
+    toDate,
+  ]);
 
-const fetchData = async () => {
-  if (loading) return;
+  const fetchData = async () => {
+    if (loading) return;
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const params = {
-      page: pageIndex + 1,
-      limit: pageSize,
-      entity_type: entityTypeFilter,
-      status: statusFilter,
-      search,
-    };
+      const params = {
+        page: pageIndex + 1,
+        limit: pageSize,
+        entity_type: entityTypeFilter,
+        search,
+      };
 
-    // 🔥 KEY LOGIC
-    if (activeTab === "new") {
-      params.is_new = true;
+      // 🔥 KEY LOGIC
+      if (activeTab === "new") {
+        params.is_new = true;
+      }
+
+      if (fromDate && toDate) {
+        params.from_date = fromDate;
+        params.to_date = toDate;
+      }
+      const res = await piboService.getPiboRegistered(params);
+
+      setData(res?.data?.records || []);
+      setTotal(res?.data?.total || 0);
+    } catch (error) {
+      console.error("API Error:", error);
+    } finally {
+      setLoading(false);
     }
-
-    // current tab me is_new mat bhejo → ALL data aayega
-
-    const res = await piboService.getPiboRegistered(params);
-
-    setData(res?.data?.records || []);
-    setTotal(res?.data?.total || 0);
-
-  } catch (error) {
-    console.error("API Error:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
   const formattedData = data.map((item) => ({
     ...item,
-    created_on: formatDate(item.created_on),
+    first_seen_at: formatDate(item.first_seen_at),
   }));
 
-  const handleExport = () => {
-    exportToExcel({
-      data: formattedData,
-      fileName: "pibo-data.xlsx",
-      sheetName: "PIBO Data",
-    });
+  const handleExport = async () => {
+    try {
+      const params = {};
+
+      if (entityTypeFilter) params.entity_type = entityTypeFilter;
+      if (search && search.trim()) params.search = search;
+      if (activeTab === "new") params.is_new = true;
+      if (fromDate && toDate) {
+        params.from_date = fromDate;
+        params.to_date = toDate;
+      }
+
+      const res = await piboService.exportPiboData(params);
+      const exportData = res?.data || [];
+
+      if (!exportData.length) {
+        alert("No data found");
+        return;
+      }
+
+      const formatted = exportData.map((item) => ({
+        "Company ID": item.company_id,
+        "Company Name": item.company,
+        "Entity Type": item.entity_type,
+        Status: item.status,
+        "First Seen At": new Date(item.first_seen_at).toLocaleString("en-IN"),
+        Address: item.address,
+      }));
+
+      exportToExcel({
+        data: formatted,
+        fileName: "pibo-data.xlsx",
+        sheetName: "PIBO Data",
+      });
+    } catch (err) {
+      console.error("Export Error:", err);
+    }
   };
   return (
     <div className="">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-700">PIBO Registered</h2>
+        <h2 className="text-2xl font-semibold text-gray-700">
+          PIBO Registered
+        </h2>
         <CommonButton
           label="Export Excel"
           onClick={handleExport}
@@ -192,7 +230,11 @@ const fetchData = async () => {
           {loading ? (
             <div className="text-center py-10">Loading...</div>
           ) : (
-            <ExcelLikeTable columns={columns} data={formattedData}  showActions={false} />
+            <ExcelLikeTable
+              columns={columns}
+              data={formattedData}
+              showActions={false}
+            />
           )}
         </div>
 

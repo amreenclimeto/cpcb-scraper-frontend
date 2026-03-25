@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import MenuButton from "../../MenuButton";
-
+import climetoLogo from "../../../assets/images/ClimetoTransparentLogo.png"
 const SubItem = ({ label, isActive, onClick }) => (
   <button
     onClick={onClick}
@@ -25,7 +25,7 @@ const SubItem = ({ label, isActive, onClick }) => (
 );
 
 const UserSidebarLinks = [
-  { label: "Pibo Dashboard", icon: Home, path: "/" },
+  { label: "PIBO Dashboard", icon: Home, path: "/" },
   // {
   //   label: "Registration",
   //   icon: UserCircle,
@@ -136,7 +136,7 @@ const UserSidebar = React.memo(
         >
           <div className="flex items-center justify-between gap-2 p-4 border-b border-gray-200 min-w-[16rem] xl:min-w-[18rem]">
             <img
-              src=""
+              src={climetoLogo}
               alt="CLIMETO Logo"
               className="h-10 w-auto object-contain flex-shrink-0"
             />
@@ -164,7 +164,7 @@ const UserSidebar = React.memo(
         >
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <img
-              src=""
+              src={climetoLogo}
               alt="CLIMETO Logo"
               className="h-10 w-auto object-contain"
             />

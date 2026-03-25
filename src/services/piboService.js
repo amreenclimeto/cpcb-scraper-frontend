@@ -12,5 +12,8 @@ export const piboService = {
       getPiboRegistered: (params) => {
     return DataService.get(API_ENDPOINTS.PIBO.GET_PIBO_RECORDS, params);
   },
+     exportPiboData: (params) => {
+      return DataService.get(API_ENDPOINTS.PIBO.EXPORT_PIBO_RECORDS, params);
+    },
 };
 
