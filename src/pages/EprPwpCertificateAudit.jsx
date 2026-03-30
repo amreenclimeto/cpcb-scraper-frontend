@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-const fmt = (n) =>
-  n == null ? "—" : Number(n).toLocaleString("en-IN");
+const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-IN"));
 
 const fmtTime = (iso) => {
   if (!iso) return "—";
@@ -126,7 +125,7 @@ const EprPwpCertificateAudit = () => {
       setLoading(true);
       setError(null);
       const res = await fetch(
-        `http://localhost:3000/api/epr-cer/history?limit=${limit}&page=${page}`
+        `http://localhost:3000/api/epr-cer/history?limit=${limit}&page=${page}`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -152,7 +151,7 @@ const EprPwpCertificateAudit = () => {
         !onlyChanged ||
         r.generatedDiff > 0 ||
         r.transferredDiff > 0 ||
-        r.availableDiff > 0
+        r.availableDiff > 0,
     );
 
   const totalPages = Math.ceil(totalSnapshots / limit);
@@ -309,7 +308,7 @@ const EprPwpCertificateAudit = () => {
 
                   return (
                     <tr
-                      key={`${row.snapshotId}-${row.category}`}
+                      key={`${row.snapshotId}-${row.category}-${i}`}
                       className={`
                         transition-colors
                         ${isTotal ? "bg-gray-50 font-semibold" : ""}
@@ -422,11 +421,7 @@ const EprPwpCertificateAudit = () => {
             {/* page number buttons */}
             {[...Array(totalPages || 1)].map((_, i) => {
               const p = i + 1;
-              if (
-                p === 1 ||
-                p === totalPages ||
-                Math.abs(p - page) <= 1
-              ) {
+              if (p === 1 || p === totalPages || Math.abs(p - page) <= 1) {
                 return (
                   <button
                     key={p}
