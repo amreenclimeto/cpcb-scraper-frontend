@@ -1,9 +1,12 @@
-// src/config/axiosInstance.js
 import axios from "axios";
-
+ 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const baseURL = apiBaseUrl ? `${apiBaseUrl.replace(/\/$/, "")}/api` : "/api";
+ 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL,
   timeout: 10000,
 });
+
 
 export default axiosInstance;
