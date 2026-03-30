@@ -39,6 +39,8 @@ const UserSidebarLinks = [
   { label: "PIBO Registered", icon: Package, path: "/pibo-registered" },
   { label: "PWP Registered", icon: Package, path: "/pwp-registered" },
   { label: "Battery Management", icon: Package, path: "/battery-management" },
+  { label: "PWP Certificate Audit", icon: Package, path: "/epr-pwp-certificate-audit" },
+ 
 ];
 
 const UserSidebar = React.memo(

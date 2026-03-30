@@ -10,4 +10,5 @@ export const API_ENDPOINTS = {
   },
   GET_PWP_RECORDS: "/pwp/records",
   EXPORT_PWP_RECORDS: "/pwp/export",
+  EPR_PWP_CERTIFICATE_LATEST: "/epr-cer/history",
 };
