@@ -115,6 +115,7 @@ const EprPwpCertificateAudit = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [totalSnapshots, setTotalSnapshots] = useState(0);
+  const baseURL = import.meta.env.VITE_API_BASE_URL;
 
   // filters
   const [selectedCat, setSelectedCat] = useState("All");
@@ -125,7 +126,7 @@ const EprPwpCertificateAudit = () => {
       setLoading(true);
       setError(null);
       const res = await fetch(
-        `http://localhost:3000/api/epr-cer/history?limit=${limit}&page=${page}`,
+        `${baseURL}/epr-cer/history?limit=${limit}&page=${page}`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
