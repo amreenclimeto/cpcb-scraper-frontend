@@ -59,14 +59,14 @@ function flattenSnapshots(snapshots) {
         generated: cat.generated,
         transferred: cat.transferred,
         available: cat.available,
-        // previous values (for "updated data" column)
-        prevGenerated: prevCat ? prevCat.generated : null,
-        prevTransferred: prevCat ? prevCat.transferred : null,
-        prevAvailable: prevCat ? prevCat.available : null,
-        // diff from API
-        generatedDiff: cat.generated_diff,
-        transferredDiff: cat.transferred_diff,
-        availableDiff: cat.available_diff,
+        // previous values (prefer interval prev if provided by API)
+        prevGenerated: cat.prev_generated_interval ?? (prevCat ? prevCat.generated : null),
+        prevTransferred: cat.prev_transferred_interval ?? (prevCat ? prevCat.transferred : null),
+        prevAvailable: cat.prev_available_interval ?? (prevCat ? prevCat.available : null),
+        // diff from API (prefer interval diff when available)
+        generatedDiff: cat.generated_diff_interval ?? cat.generated_diff,
+        transferredDiff: cat.transferred_diff_interval ?? cat.transferred_diff,
+        availableDiff: cat.available_diff_interval ?? cat.available_diff,
       });
     });
   });
@@ -126,7 +126,12 @@ const EprPwpCertificateAudit = () => {
       setLoading(true);
       setError(null);
       const res = await fetch(
-        `${baseURL}/epr-cer/history?limit=${limit}&page=${page}`,
+        `${baseURL}/epr-cer/history?limit=${limit}&page=${page}&prev_hours=2`,
+        {
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        }
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
