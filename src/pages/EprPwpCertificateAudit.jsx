@@ -126,12 +126,7 @@ const EprPwpCertificateAudit = () => {
       setLoading(true);
       setError(null);
       const res = await fetch(
-        `${baseURL}/epr-cer/history?limit=${limit}&page=${page}`,
-        {
-          headers: {
-            "Cache-Control": "no-cache",
-          },
-        }
+        `${baseURL}/epr-cer/history?limit=${limit}&page=${page}&prev_hours=2`,
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
