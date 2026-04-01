@@ -140,9 +140,7 @@ const EprPwpCertificateAudit = () => {
       if (typeof appliedTo !== "undefined" && appliedTo) params.set("to", appliedTo);
       params.set("prev_hours", 2);
 
-      const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`, {
-        headers: { "Cache-Control": "no-cache" },
-      });
+      const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setApiData(json);
