@@ -115,29 +115,45 @@ const EprPwpCertificateAudit = () => {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [totalSnapshots, setTotalSnapshots] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const baseURL = import.meta.env.VITE_API_BASE_URL;
 
   // filters
   const [selectedCat, setSelectedCat] = useState("All");
   const [onlyChanged, setOnlyChanged] = useState(false);
+  // date range filters (draft + applied)
+  const [draftFrom, setDraftFrom] = useState("");
+  const [draftTo, setDraftTo] = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo, setAppliedTo] = useState("");
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(
-        `${baseURL}/epr-cer/history?limit=${limit}&page=${page}&prev_hours=2`,
-      );
+      const params = new URLSearchParams();
+      params.set("limit", limit);
+      params.set("page", page);
+      if (selectedCat && selectedCat !== "All") params.set("category", selectedCat);
+      // appliedFrom/appliedTo may be undefined; ensure variables exist
+      if (typeof appliedFrom !== "undefined" && appliedFrom) params.set("from", appliedFrom);
+      if (typeof appliedTo !== "undefined" && appliedTo) params.set("to", appliedTo);
+      params.set("prev_hours", 2);
+
+      const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`, {
+        headers: { "Cache-Control": "no-cache" },
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setApiData(json);
       setTotalSnapshots(json.total_snapshots ?? json.data?.length ?? 0);
+      setTotalPages(json.total_pages ?? 1);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [page, limit]);
+  }, [page, limit, selectedCat, appliedFrom, appliedTo]);
 
   useEffect(() => {
     fetchData();
@@ -155,7 +171,7 @@ const EprPwpCertificateAudit = () => {
         r.availableDiff > 0,
     );
 
-  const totalPages = Math.ceil(totalSnapshots / limit);
+  // pagination: totalPages is provided by API (set in fetchData)
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans">
@@ -207,14 +223,57 @@ const EprPwpCertificateAudit = () => {
           </span>
         </label>
 
-        {/* refresh */}
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-all"
-        >
-          {loading ? "Refreshing…" : "↻ Refresh"}
-        </button>
+        {/* date range inputs */}
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={draftFrom}
+            onChange={(e) => setDraftFrom(e.target.value)}
+            className="text-xs px-2 py-1 border rounded"
+            aria-label="From date"
+          />
+          <span className="text-xs text-gray-500">to</span>
+          <input
+            type="date"
+            value={draftTo}
+            onChange={(e) => setDraftTo(e.target.value)}
+            className="text-xs px-2 py-1 border rounded"
+            aria-label="To date"
+          />
+          <button
+            onClick={() => {
+              setAppliedFrom(draftFrom);
+              setAppliedTo(draftTo);
+              setPage(1);
+            }}
+            disabled={loading}
+            className="text-xs px-2 py-1 rounded border bg-white"
+          >
+            Apply
+          </button>
+          <button
+            onClick={() => {
+              setDraftFrom("");
+              setDraftTo("");
+              setAppliedFrom("");
+              setAppliedTo("");
+              setPage(1);
+            }}
+            disabled={loading}
+            className="text-xs px-2 py-1 rounded border bg-white"
+          >
+            Clear
+          </button>
+
+          {/* refresh */}
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 transition-all"
+          >
+            {loading ? "Refreshing…" : "↻ Refresh"}
+          </button>
+        </div>
       </div>
 
       {/* ── error ── */}
