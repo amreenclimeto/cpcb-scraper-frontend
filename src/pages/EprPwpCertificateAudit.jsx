@@ -82,7 +82,7 @@ function buildHistoryParams({ page, limit, selectedCat, appliedFrom, appliedTo }
   if (selectedCat && selectedCat !== "All") params.set("category", selectedCat);
   if (appliedFrom) params.set("from", appliedFrom);
   if (appliedTo) params.set("to", appliedTo);
-  params.set("prev_hours", 2);
+  // params.set("prev_hours", 2);
   return params;
 }
 
