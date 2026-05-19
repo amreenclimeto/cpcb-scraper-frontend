@@ -198,8 +198,13 @@ const PwpRegisteredList = () => {
       }
 
       const formatted = exportData.map((item) => ({
-        ...item,
-        first_seen_at: formatDate(item.first_seen_at),
+        "Company Name": item.company,
+        State: item.state,
+        Category: item.category,
+        Class: item.class,
+        Address: item.address,
+        Status: item.status,
+        "First Seen": formatDate(item.first_seen_at),
       }));
 
       exportToExcel({
@@ -214,7 +219,6 @@ const PwpRegisteredList = () => {
       setExporting(false);
     }
   };
-
   return (
     <div className="">
       <div className="flex gap-4 mb-4 flex-wrap items-center">
