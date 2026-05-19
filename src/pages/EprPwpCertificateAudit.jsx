@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { Download } from "lucide-react";
+import CommonButton from "../components/CommonButton";
+import { exportToExcel } from "../utils/exportExcel";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-IN"));
@@ -17,15 +20,15 @@ const fmtTime = (iso) => {
   });
 };
 
-const timeDiff = (prev, curr) => {
-  if (!prev) return null;
-  const ms = new Date(curr) - new Date(prev);
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ${s % 60}s`;
-  return `${Math.floor(m / 60)}h ${m % 60}m`;
-};
+// const timeDiff = (prev, curr) => {
+//   if (!prev) return null;
+//   const ms = new Date(curr) - new Date(prev);
+//   const s = Math.floor(ms / 1000);
+//   if (s < 60) return `${s}s`;
+//   const m = Math.floor(s / 60);
+//   if (m < 60) return `${m}m ${s % 60}s`;
+//   return `${Math.floor(m / 60)}h ${m % 60}m`;
+// };
 
 const CATEGORIES = [
   "Cat I(EOL)",
@@ -51,9 +54,8 @@ function flattenSnapshots(snapshots) {
         : null;
       rows.push({
         snapshotId: snap.snapshot_id,
-        snapshotIndex: si + 1,
         time: snap.time,
-        timeDiffFromPrev: prevSnap ? timeDiff(prevSnap.time, snap.time) : null,
+        // timeDiffFromPrev: prevSnap ? timeDiff(prevSnap.time, snap.time) : null,
         category: cat.category,
         // current values
         generated: cat.generated,
@@ -71,6 +73,68 @@ function flattenSnapshots(snapshots) {
     });
   });
   return rows;
+}
+
+function buildHistoryParams({ page, limit, selectedCat, appliedFrom, appliedTo }) {
+  const params = new URLSearchParams();
+  params.set("limit", limit);
+  params.set("page", page);
+  if (selectedCat && selectedCat !== "All") params.set("category", selectedCat);
+  if (appliedFrom) params.set("from", appliedFrom);
+  if (appliedTo) params.set("to", appliedTo);
+  params.set("prev_hours", 2);
+  return params;
+}
+
+function applyRowFilters(rows, { selectedCat, onlyChanged }) {
+  return rows
+    .filter((r) => selectedCat === "All" || r.category === selectedCat)
+    .filter(
+      (r) =>
+        !onlyChanged ||
+        r.generatedDiff > 0 ||
+        r.transferredDiff > 0 ||
+        r.availableDiff > 0,
+    );
+}
+
+function rowsToExcelData(rows) {
+  return rows.map((row) => ({
+    Time: fmtTime(row.time),
+    Category: row.category,
+    "Generated (Previous)": row.prevGenerated ?? "",
+    "Generated (Current)": row.generated ?? "",
+    "Generated (Diff)": row.generatedDiff ?? "",
+    "Transferred (Previous)": row.prevTransferred ?? "",
+    "Transferred (Current)": row.transferred ?? "",
+    "Transferred (Diff)": row.transferredDiff ?? "",
+    "Available (Previous)": row.prevAvailable ?? "",
+    "Available (Current)": row.available ?? "",
+    "Available (Diff)": row.availableDiff ?? "",
+  }));
+}
+
+async function fetchAllSnapshots(baseURL, filters) {
+  const allSnapshots = [];
+  let page = 1;
+  let totalPages = 1;
+  const exportPageLimit = 100;
+
+  while (page <= totalPages) {
+    const params = buildHistoryParams({
+      page,
+      limit: exportPageLimit,
+      ...filters,
+    });
+    const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    allSnapshots.push(...(json.data || []));
+    totalPages = json.total_pages ?? 1;
+    page += 1;
+  }
+
+  return allSnapshots;
 }
 
 // ─── sub-components ─────────────────────────────────────────────────────────
@@ -109,6 +173,7 @@ const Skeleton = () => (
 const EprPwpCertificateAudit = () => {
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 
   // pagination state
@@ -131,14 +196,13 @@ const EprPwpCertificateAudit = () => {
     try {
       setLoading(true);
       setError(null);
-      const params = new URLSearchParams();
-      params.set("limit", limit);
-      params.set("page", page);
-      if (selectedCat && selectedCat !== "All") params.set("category", selectedCat);
-      // appliedFrom/appliedTo may be undefined; ensure variables exist
-      if (typeof appliedFrom !== "undefined" && appliedFrom) params.set("from", appliedFrom);
-      if (typeof appliedTo !== "undefined" && appliedTo) params.set("to", appliedTo);
-      params.set("prev_hours", 2);
+      const params = buildHistoryParams({
+        page,
+        limit,
+        selectedCat,
+        appliedFrom,
+        appliedTo,
+      });
 
       const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -157,30 +221,68 @@ const EprPwpCertificateAudit = () => {
     fetchData();
   }, [fetchData]);
 
+  const filterState = { selectedCat, onlyChanged };
+
   // derive rows
   const allRows = apiData?.data ? flattenSnapshots(apiData.data) : [];
-  const filtered = allRows
-    .filter((r) => selectedCat === "All" || r.category === selectedCat)
-    .filter(
-      (r) =>
-        !onlyChanged ||
-        r.generatedDiff > 0 ||
-        r.transferredDiff > 0 ||
-        r.availableDiff > 0,
-    );
+  const filtered = applyRowFilters(allRows, filterState);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      setError(null);
+
+      const snapshots = await fetchAllSnapshots(baseURL, {
+        selectedCat,
+        appliedFrom,
+        appliedTo,
+      });
+      const exportRows = applyRowFilters(
+        flattenSnapshots(snapshots),
+        filterState,
+      );
+      const excelData = rowsToExcelData(exportRows);
+
+      if (!excelData.length) {
+        alert("No data to export for the current filters.");
+        return;
+      }
+
+      exportToExcel({
+        data: excelData,
+        fileName: "epr-pwp-certificate-audit.xlsx",
+        sheetName: "Certificate Audit",
+      });
+    } catch (err) {
+      console.error("Export Error:", err);
+      setError(err.message || "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // pagination: totalPages is provided by API (set in fetchData)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans">
+    <div className="min-h-screen bg-gray-50 p-2 md:p-4 font-sans">
       {/* ── header ── */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-          EPR PWP Certificate Audit
-        </h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Snapshot-wise category breakdown — Generated · Transferred · Available
-        </p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            EPR PWP Certificate Audit
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Snapshot-wise category breakdown — Generated · Transferred · Available
+          </p>
+        </div>
+        <CommonButton
+          label={exporting ? "Exporting…" : "Export Excel"}
+          onClick={handleExport}
+          icon={Download}
+          variant="primary"
+          size="md"
+          disabled={loading || exporting}
+        />
       </div>
 
       {/* ── filters ── */}
@@ -291,14 +393,11 @@ const EprPwpCertificateAudit = () => {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="sticky left-0 bg-gray-50 text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide whitespace-nowrap">
-                    Snapshot
-                  </th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide whitespace-nowrap">
                     Time
                   </th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide whitespace-nowrap">
+                  {/* <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide whitespace-nowrap">
                     Gap
-                  </th>
+                  </th> */}
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide whitespace-nowrap">
                     Category
                   </th>
@@ -328,7 +427,7 @@ const EprPwpCertificateAudit = () => {
 
                 {/* sub-headers */}
                 <tr className="border-b border-gray-200 bg-white">
-                  <th colSpan={4} />
+                  <th colSpan={2} />
                   {["Generated", "Transferred", "Available"].map((col) => (
                     <React.Fragment key={col}>
                       <th className="px-3 py-2 text-xs font-medium text-gray-500 text-right whitespace-nowrap">
@@ -349,7 +448,7 @@ const EprPwpCertificateAudit = () => {
                 {filtered.length === 0 && (
                   <tr>
                     <td
-                      colSpan={13}
+                      colSpan={11}
                       className="text-center py-12 text-gray-400 text-sm"
                     >
                       No data found
@@ -373,20 +472,13 @@ const EprPwpCertificateAudit = () => {
                         ${hasChange ? "bg-emerald-50/40" : "hover:bg-gray-50/60"}
                       `}
                     >
-                      {/* snapshot */}
-                      <td className="sticky left-0 bg-inherit px-4 py-3 whitespace-nowrap">
-                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-700 text-xs font-bold">
-                          S{row.snapshotIndex}
-                        </span>
-                      </td>
-
                       {/* time */}
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-600 font-mono">
+                      <td className="sticky left-0 bg-inherit px-4 py-3 whitespace-nowrap text-xs text-gray-600 font-mono">
                         {fmtTime(row.time)}
                       </td>
 
                       {/* gap */}
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      {/* <td className="px-4 py-3 whitespace-nowrap">
                         {row.timeDiffFromPrev ? (
                           <span className="text-xs bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 font-mono">
                             +{row.timeDiffFromPrev}
@@ -394,7 +486,7 @@ const EprPwpCertificateAudit = () => {
                         ) : (
                           <span className="text-gray-300 text-xs">base</span>
                         )}
-                      </td>
+                      </td> */}
 
                       {/* category */}
                       <td className="px-4 py-3 whitespace-nowrap">
