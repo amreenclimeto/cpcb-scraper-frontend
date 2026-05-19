@@ -165,7 +165,7 @@ const PiboRegisteredList = () => {
   return (
     <div className="">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      {/* <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-semibold text-gray-700">
           PIBO Registered
         </h2>
@@ -175,7 +175,7 @@ const PiboRegisteredList = () => {
           icon={Download}
           variant="primary"
         />
-      </div>
+      </div> */}
 
       {/* 🔥 Tabs */}
       <div className="flex gap-4 mb-4">
@@ -195,6 +195,12 @@ const PiboRegisteredList = () => {
             setPageIndex(0);
           }}
           variant={activeTab === "new" ? "success" : "secondary"}
+        />
+          <CommonButton
+          label="Export Excel"
+          onClick={handleExport}
+          icon={Download}
+          variant="primary"
         />
       </div>
 

@@ -11,7 +11,8 @@ export default function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<MainLayout />}>
-          <Route index element={<PiboTable />} />
+          {/* <Route index element={<PiboTable />} /> */}
+          <Route index element={<PiboRegisteredList/>} />
           <Route path="pibo-registered" element={<PiboRegisteredList />} />
           <Route path="pwp-registered" element={<PwpRegisteredList />} />
           <Route path="battery-management" element={<BatteryManagement />} />

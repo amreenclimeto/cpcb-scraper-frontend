@@ -30,37 +30,6 @@ const STATE_MAP = {
   meghalaya: "Meghalaya",
 };
 
-const extractState = (address) => {
-  if (!address) return "";
-
-  const lower = address.toLowerCase();
-
-  // ✅ 1. Direct match (best)
-  for (const key in STATE_MAP) {
-    if (lower.includes(key)) {
-      return STATE_MAP[key];
-    }
-  }
-
-  // ✅ 2. PIN code based fallback (India logic)
-  const pincodeMatch = address.match(/\b\d{6}\b/);
-  if (pincodeMatch) {
-    const pin = pincodeMatch[0];
-
-    if (pin.startsWith("4")) return "Maharashtra";
-    if (pin.startsWith("6")) return "Tamil Nadu";
-    if (pin.startsWith("2")) return "Uttar Pradesh";
-    if (pin.startsWith("7")) return "West Bengal";
-    if (pin.startsWith("3")) return "Gujarat";
-    if (pin.startsWith("5")) return "Andhra Pradesh / Telangana";
-    if (pin.startsWith("1")) return "Delhi / Haryana / Punjab";
-  }
-
-  // ❌ fallback
-  return "Unknown";
-};
-
-
 const PiboTable = () => {
   const [activeTab, setActiveTab] = useState("current"); // 🔥 NEW
 

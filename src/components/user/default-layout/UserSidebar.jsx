@@ -25,7 +25,7 @@ const SubItem = ({ label, isActive, onClick }) => (
 );
 
 const UserSidebarLinks = [
-  { label: "PIBO Dashboard", icon: Home, path: "/" },
+  // { label: "PIBO Dashboard", icon: Home, path: "/" },
   // {
   //   label: "Registration",
   //   icon: UserCircle,
@@ -36,7 +36,8 @@ const UserSidebarLinks = [
   //     { label: "Registration Details", path: "/user/registration-details" },
   //   ],
   // },
-  { label: "PIBO Registered", icon: Package, path: "/pibo-registered" },
+  { label: "PIBO Registered", icon: Package, path: "/" },
+  // { label: "PIBO Registered", icon: Package, path: "/pibo-registered" },
   { label: "PWP Registered", icon: Package, path: "/pwp-registered" },
   { label: "Battery Management", icon: Package, path: "/battery-management" },
   { label: "PWP Certificate Audit", icon: Package, path: "/epr-pwp-certificate-audit" },
