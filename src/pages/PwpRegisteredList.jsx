@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ExcelLikeTable from "../components/ExcelLikeTable";
 import { Download } from "lucide-react";
 import CommonPagination from "../components/CommonPagination";
@@ -8,10 +8,46 @@ import CommonButton from "../components/CommonButton";
 import { pwpService } from "../services/pwpService";
 import { formatDate } from "../utils/formatDate";
 
+function buildPwpParams({
+  search,
+  activeTab,
+  fromDate,
+  toDate,
+  selectedStates,
+  page,
+  limit,
+}) {
+  const params = {
+    search,
+    is_active: true,
+  };
+
+  if (page != null) params.page = page;
+  if (limit != null) params.limit = limit;
+
+  if (activeTab === "new") {
+    params.is_new = true;
+  }
+
+  if (fromDate && toDate) {
+    params.from_date = fromDate;
+    params.to_date = toDate;
+  }
+
+  // Default All = no states param; e.g. states=PUNJAB,TAMIL NADU,UTTAR PRADESH
+  if (selectedStates?.length > 0) {
+    params.states = selectedStates.join(",");
+  }
+
+  return params;
+}
+
 const PwpRegisteredList = () => {
-  const [activeTab, setActiveTab] = useState("current"); // 🔥 NEW
+  const [activeTab, setActiveTab] = useState("current");
 
   const [search, setSearch] = useState("");
+  const [selectedStates, setSelectedStates] = useState([]);
+  const [stateOptions, setStateOptions] = useState([]);
 
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(5);
@@ -19,6 +55,7 @@ const PwpRegisteredList = () => {
   const [data, setData] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -42,6 +79,13 @@ const PwpRegisteredList = () => {
       placeholder: "Search...",
     },
     {
+      type: "multi-select",
+      name: "states",
+      value: selectedStates,
+      placeholder: "All States",
+      options: stateOptions,
+    },
+    {
       type: "date-range",
       name: "dateRange",
       from: fromDate,
@@ -49,10 +93,36 @@ const PwpRegisteredList = () => {
     },
   ];
 
+  const statesKey = selectedStates.join("|");
+
+  useEffect(() => {
+    const loadStateOptions = async () => {
+      try {
+        const res = await pwpService.getPwpData({
+          page: 1,
+          limit: 5000,
+          is_active: true,
+        });
+        const states = [
+          ...new Set(
+            (res?.data?.records || [])
+              .map((r) => r.state?.trim())
+              .filter(Boolean),
+          ),
+        ].sort((a, b) => a.localeCompare(b));
+        setStateOptions(states);
+      } catch (error) {
+        console.error("Failed to load state options:", error);
+      }
+    };
+    loadStateOptions();
+  }, []);
+
   const handleFilterChange = (name, value) => {
     setPageIndex(0);
 
     if (name === "search") setSearch(value);
+    if (name === "states") setSelectedStates(value);
 
     if (name === "date") {
       setFromDate("");
@@ -64,34 +134,29 @@ const PwpRegisteredList = () => {
       setToDate(value.to);
     }
   };
+
   const handleReset = () => {
     setSearch("");
+    setSelectedStates([]);
     setPageIndex(0);
     setFromDate("");
     setToDate("");
   };
 
-  const fetchData = async () => {
-    if (loading) return;
-
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const params = {
+      const params = buildPwpParams({
+        search,
+        activeTab,
+        fromDate,
+        toDate,
+        selectedStates,
         page: pageIndex + 1,
         limit: pageSize,
-        search,
-        is_active: true, // ✅ recommended
-      };
+      });
 
-      if (activeTab === "new") {
-        params.is_new = true;
-      }
-
-      if (fromDate && toDate) {
-        params.from_date = fromDate;
-        params.to_date = toDate;
-      }
       const res = await pwpService.getPwpData(params);
 
       setData(res?.data?.records || []);
@@ -101,12 +166,11 @@ const PwpRegisteredList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize, search, activeTab, fromDate, toDate, statesKey]);
 
-  // 🔥 API CALL
   useEffect(() => {
     fetchData();
-  }, [pageIndex, pageSize, search, activeTab, fromDate, toDate]);
+  }, [fetchData]);
 
   const formattedData = data.map((item) => ({
     ...item,
@@ -115,23 +179,23 @@ const PwpRegisteredList = () => {
 
   const handleExport = async () => {
     try {
-      const params = {
+      setExporting(true);
+
+      const params = buildPwpParams({
         search,
-        is_active: true,
-      };
+        activeTab,
+        fromDate,
+        toDate,
+        selectedStates,
+      });
 
-      if (activeTab === "new") {
-        params.is_new = true;
-      }
-
-      if (fromDate && toDate) {
-        params.from_date = fromDate;
-        params.to_date = toDate;
-      }
-
-      // 🔥 call export API (no pagination)
       const res = await pwpService.exportPwpData(params);
       const exportData = res?.data || [];
+
+      if (!exportData.length) {
+        alert("No data to export for the current filters.");
+        return;
+      }
 
       const formatted = exportData.map((item) => ({
         ...item,
@@ -145,23 +209,15 @@ const PwpRegisteredList = () => {
       });
     } catch (err) {
       console.error("Export Error:", err);
+      alert("Export failed. Please try again.");
+    } finally {
+      setExporting(false);
     }
   };
+
   return (
     <div className="">
-      {/* Header */}
-      {/* <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-700">PWP Registered</h2>
-        <CommonButton
-          label="Export Excel"
-          onClick={handleExport}
-          icon={Download}
-          variant="primary"
-        />
-      </div> */}
-
-      {/* 🔥 Tabs */}
-      <div className="flex gap-4 mb-4">
+      <div className="flex gap-4 mb-4 flex-wrap items-center">
         <CommonButton
           label="All Data"
           onClick={() => {
@@ -179,17 +235,16 @@ const PwpRegisteredList = () => {
           }}
           variant={activeTab === "new" ? "success" : "secondary"}
         />
-          <CommonButton
-          label="Export Excel"
+        <CommonButton
+          label={exporting ? "Exporting…" : "Export Excel"}
           onClick={handleExport}
           icon={Download}
           variant="primary"
+          disabled={exporting || loading}
         />
       </div>
 
-      {/* Card */}
       <div className="bg-white rounded-xl shadow border">
-        {/* Toolbar */}
         <div className="flex justify-between items-center p-4 border-b">
           <div className="flex gap-4">
             <CommonFilters
@@ -199,7 +254,6 @@ const PwpRegisteredList = () => {
             />
           </div>
 
-          {/* Page Size */}
           <select
             value={pageSize}
             onChange={(e) => {
@@ -214,7 +268,6 @@ const PwpRegisteredList = () => {
           </select>
         </div>
 
-        {/* Table */}
         <div className="p-4">
           {loading ? (
             <div className="text-center py-10">Loading...</div>
@@ -227,7 +280,6 @@ const PwpRegisteredList = () => {
           )}
         </div>
 
-        {/* Pagination */}
         <CommonPagination
           pageIndex={pageIndex}
           pageSize={pageSize}
