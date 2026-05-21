@@ -42,33 +42,81 @@ const CATEGORIES = [
   "Total",
 ];
 
+function resolvePrev(current, apiPrev, diff, fallbackPrev) {
+  if (apiPrev != null) return apiPrev;
+  if (fallbackPrev != null) return fallbackPrev;
+  if (current != null && diff != null) return Number(current) - Number(diff);
+  return null;
+}
+
+function computeDiffs(cat, prev) {
+  const generatedDiff =
+    cat.generated_diff_interval ?? cat.generated_diff ?? 0;
+  const transferredDiff =
+    cat.transferred_diff_interval ?? cat.transferred_diff ?? 0;
+  const availableDiff = generatedDiff - transferredDiff;
+
+  // Reconcile prev with diff when API sends diff but not prev_* (older backend)
+  const prevGenerated = resolvePrev(
+    cat.generated,
+    cat.prev_generated_interval ?? cat.prev_generated,
+    generatedDiff,
+    prev?.generated,
+  );
+  const prevTransferred = resolvePrev(
+    cat.transferred,
+    cat.prev_transferred_interval ?? cat.prev_transferred,
+    transferredDiff,
+    prev?.transferred,
+  );
+  const prevAvailable = resolvePrev(
+    cat.available,
+    cat.prev_available_interval ?? cat.prev_available,
+    availableDiff,
+    prev?.available,
+  );
+
+  return {
+    generatedDiff,
+    transferredDiff,
+    availableDiff,
+    prevGenerated,
+    prevTransferred,
+    prevAvailable,
+  };
+}
+
 // ─── flatten API response into table rows ───────────────────────────────────
-// Each row = one category × one snapshot
+// Each row = one category × one snapshot (snapshots are newest-first from API)
 function flattenSnapshots(snapshots) {
   const rows = [];
   snapshots.forEach((snap, si) => {
-    const prevSnap = si > 0 ? snapshots[si - 1] : null;
+    const olderSnap = si < snapshots.length - 1 ? snapshots[si + 1] : null;
+
     snap.data.forEach((cat) => {
-      const prevCat = prevSnap
-        ? prevSnap.data.find((d) => d.category === cat.category)
-        : null;
+      const olderCat = olderSnap?.data.find((d) => d.category === cat.category);
+      const {
+        generatedDiff,
+        transferredDiff,
+        availableDiff,
+        prevGenerated,
+        prevTransferred,
+        prevAvailable,
+      } = computeDiffs(cat, olderCat);
+
       rows.push({
         snapshotId: snap.snapshot_id,
         time: snap.time,
-        // timeDiffFromPrev: prevSnap ? timeDiff(prevSnap.time, snap.time) : null,
         category: cat.category,
-        // current values
         generated: cat.generated,
         transferred: cat.transferred,
         available: cat.available,
-        // previous values (prefer interval prev if provided by API)
-        prevGenerated: cat.prev_generated_interval ?? (prevCat ? prevCat.generated : null),
-        prevTransferred: cat.prev_transferred_interval ?? (prevCat ? prevCat.transferred : null),
-        prevAvailable: cat.prev_available_interval ?? (prevCat ? prevCat.available : null),
-        // diff from API (prefer interval diff when available)
-        generatedDiff: cat.generated_diff_interval ?? cat.generated_diff,
-        transferredDiff: cat.transferred_diff_interval ?? cat.transferred_diff,
-        availableDiff: cat.available_diff_interval ?? cat.available_diff,
+        prevGenerated,
+        prevTransferred,
+        prevAvailable,
+        generatedDiff,
+        transferredDiff,
+        availableDiff,
       });
     });
   });
@@ -86,16 +134,31 @@ function buildHistoryParams({ page, limit, selectedCat, appliedFrom, appliedTo }
   return params;
 }
 
+function hasNonZeroDiff(value) {
+  return value != null && value !== 0;
+}
+
 function applyRowFilters(rows, { selectedCat, onlyChanged }) {
   return rows
     .filter((r) => selectedCat === "All" || r.category === selectedCat)
     .filter(
       (r) =>
         !onlyChanged ||
-        r.generatedDiff > 0 ||
-        r.transferredDiff > 0 ||
-        r.availableDiff > 0,
+        hasNonZeroDiff(r.generatedDiff) ||
+        hasNonZeroDiff(r.transferredDiff) ||
+        hasNonZeroDiff(r.availableDiff),
     );
+}
+
+function summarizeDiffTotals(rows) {
+  return rows.reduce(
+    (acc, row) => ({
+      generated: acc.generated + (row.generatedDiff ?? 0),
+      transferred: acc.transferred + (row.transferredDiff ?? 0),
+      available: acc.available + (row.availableDiff ?? 0),
+    }),
+    { generated: 0, transferred: 0, available: 0 },
+  );
 }
 
 function rowsToExcelData(rows) {
@@ -139,10 +202,20 @@ async function fetchAllSnapshots(baseURL, filters) {
 
 // ─── sub-components ─────────────────────────────────────────────────────────
 const DiffBadge = ({ value }) => {
-  if (!value) return <span className="text-gray-400 text-xs">—</span>;
+  if (value == null || value === 0) {
+    return <span className="text-gray-400 text-xs">—</span>;
+  }
+  const isPositive = value > 0;
   return (
-    <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
-      ▲ +{fmt(value)}
+    <span
+      className={`inline-flex items-center gap-0.5 text-xs font-semibold rounded px-1.5 py-0.5 border ${
+        isPositive
+          ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+          : "text-red-700 bg-red-50 border-red-200"
+      }`}
+    >
+      {isPositive ? "▲" : "▼"} {isPositive ? "+" : ""}
+      {fmt(value)}
     </span>
   );
 };
@@ -192,6 +265,13 @@ const EprPwpCertificateAudit = () => {
   const [appliedFrom, setAppliedFrom] = useState("");
   const [appliedTo, setAppliedTo] = useState("");
 
+  const [grandTotals, setGrandTotals] = useState({
+    generated: 0,
+    transferred: 0,
+    available: 0,
+  });
+  const [totalsLoading, setTotalsLoading] = useState(false);
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -222,6 +302,36 @@ const EprPwpCertificateAudit = () => {
   }, [fetchData]);
 
   const filterState = { selectedCat, onlyChanged };
+
+  // Grand totals across all pages for current filters (category + date + onlyChanged)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadGrandTotals() {
+      try {
+        setTotalsLoading(true);
+        const snapshots = await fetchAllSnapshots(baseURL, {
+          selectedCat,
+          appliedFrom,
+          appliedTo,
+        });
+        if (cancelled) return;
+        const rows = applyRowFilters(flattenSnapshots(snapshots), filterState);
+        setGrandTotals(summarizeDiffTotals(rows));
+      } catch {
+        if (!cancelled) {
+          setGrandTotals({ generated: 0, transferred: 0, available: 0 });
+        }
+      } finally {
+        if (!cancelled) setTotalsLoading(false);
+      }
+    }
+
+    if (baseURL) loadGrandTotals();
+    return () => {
+      cancelled = true;
+    };
+  }, [baseURL, selectedCat, appliedFrom, appliedTo, onlyChanged]);
 
   // derive rows
   const allRows = apiData?.data ? flattenSnapshots(apiData.data) : [];
@@ -292,7 +402,10 @@ const EprPwpCertificateAudit = () => {
           {["All", ...CATEGORIES].map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCat(cat)}
+              onClick={() => {
+                setSelectedCat(cat);
+                setPage(1);
+              }}
               className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
                 selectedCat === cat
                   ? "bg-blue-600 text-white border-blue-600"
@@ -307,7 +420,10 @@ const EprPwpCertificateAudit = () => {
         {/* changed only toggle */}
         <label className="ml-auto flex items-center gap-2 cursor-pointer select-none">
           <div
-            onClick={() => setOnlyChanged((v) => !v)}
+            onClick={() => {
+              setOnlyChanged((v) => !v);
+              setPage(1);
+            }}
             className={`relative w-9 h-5 rounded-full transition-colors ${
               onlyChanged ? "bg-emerald-500" : "bg-gray-300"
             }`}
@@ -458,9 +574,9 @@ const EprPwpCertificateAudit = () => {
 
                 {filtered.map((row, i) => {
                   const hasChange =
-                    row.generatedDiff > 0 ||
-                    row.transferredDiff > 0 ||
-                    row.availableDiff > 0;
+                    hasNonZeroDiff(row.generatedDiff) ||
+                    hasNonZeroDiff(row.transferredDiff) ||
+                    hasNonZeroDiff(row.availableDiff);
                   const isTotal = row.category === "Total";
 
                   return (
@@ -541,6 +657,71 @@ const EprPwpCertificateAudit = () => {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ── grand total (all filtered pages) ── */}
+        {!loading && (
+          <div className="border-t-2 border-gray-300 bg-slate-100">
+            <table className="w-full text-sm border-collapse">
+              <tbody>
+                <tr className="font-semibold">
+                  <td
+                    colSpan={2}
+                    className="sticky left-0 bg-slate-100 px-4 py-3 text-xs uppercase tracking-wide text-gray-700 whitespace-nowrap"
+                  >
+                    Grand Total
+                    {totalsLoading && (
+                      <span className="ml-2 font-normal text-gray-500 normal-case">
+                        (calculating…)
+                      </span>
+                    )}
+                    {!totalsLoading && (
+                      <span className="ml-2 font-normal text-gray-500 normal-case">
+                        · {selectedCat}
+                        {appliedFrom || appliedTo
+                          ? ` · ${appliedFrom || "…"} to ${appliedTo || "…"}`
+                          : ""}
+                        {onlyChanged ? " · updated only" : ""}
+                      </span>
+                    )}
+                  </td>
+                  <td colSpan={2} className="px-3 py-3" />
+                  <td className="px-3 py-3 text-center text-center px-4 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border-x border-blue-100 uppercase tracking-wide">
+                  Generated Total
+                    {totalsLoading ? (
+                      <span className="text-xs text-gray-400 ml-5">…</span>
+                    ) : (
+                      <span className="ml-2">  
+                        <DiffBadge value={grandTotals.generated} />
+                      </span>
+                    )}
+                  </td>
+                  <td colSpan={2} className="px-3 py-3" />
+                  <td className="px-3 py-3 text-center text-center px-4 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border-x border-amber-100 uppercase tracking-wide">
+                  Transferred Total
+                    {totalsLoading ? (
+                      <span className="text-xs text-gray-400 ml-5">…</span>
+                    ) : (
+                      <span className="ml-2">  
+                        <DiffBadge value={grandTotals.transferred} />
+                      </span>
+                    )}
+                  </td>
+                  <td colSpan={2} className="px-3 py-3" />
+                  <td className="px-3 py-3 text-center text-center px-4 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border-x border-emerald-100 uppercase tracking-wide">
+                  Available Total
+                    {totalsLoading ? (
+                      <span className="text-xs text-gray-400">…</span>
+                    ) : (
+                      <span className="ml-2">  
+                        <DiffBadge value={grandTotals.available} />
+                      </span>
+                    )}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
