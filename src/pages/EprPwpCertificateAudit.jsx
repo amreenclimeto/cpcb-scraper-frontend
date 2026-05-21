@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Download } from "lucide-react";
 import CommonButton from "../components/CommonButton";
 import { exportToExcel } from "../utils/exportExcel";
@@ -123,14 +123,23 @@ function flattenSnapshots(snapshots) {
   return rows;
 }
 
-function buildHistoryParams({ page, limit, selectedCat, appliedFrom, appliedTo }) {
+function buildHistoryParams({
+  page,
+  limit,
+  selectedCat,
+  appliedFrom,
+  appliedTo,
+  onlyChanged,
+  includeTotals = true,
+}) {
   const params = new URLSearchParams();
   params.set("limit", limit);
   params.set("page", page);
+  params.set("include_totals", includeTotals ? "true" : "false");
   if (selectedCat && selectedCat !== "All") params.set("category", selectedCat);
   if (appliedFrom) params.set("from", appliedFrom);
   if (appliedTo) params.set("to", appliedTo);
-  // params.set("prev_hours", 2);
+  if (onlyChanged) params.set("only_changed", "true");
   return params;
 }
 
@@ -148,17 +157,6 @@ function applyRowFilters(rows, { selectedCat, onlyChanged }) {
         hasNonZeroDiff(r.transferredDiff) ||
         hasNonZeroDiff(r.availableDiff),
     );
-}
-
-function summarizeDiffTotals(rows) {
-  return rows.reduce(
-    (acc, row) => ({
-      generated: acc.generated + (row.generatedDiff ?? 0),
-      transferred: acc.transferred + (row.transferredDiff ?? 0),
-      available: acc.available + (row.availableDiff ?? 0),
-    }),
-    { generated: 0, transferred: 0, available: 0 },
-  );
 }
 
 function rowsToExcelData(rows) {
@@ -185,9 +183,10 @@ async function fetchAllSnapshots(baseURL, filters) {
 
   while (page <= totalPages) {
     const params = buildHistoryParams({
+      ...filters,
       page,
       limit: exportPageLimit,
-      ...filters,
+      includeTotals: false,
     });
     const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -270,9 +269,10 @@ const EprPwpCertificateAudit = () => {
     transferred: 0,
     available: 0,
   });
-  const [totalsLoading, setTotalsLoading] = useState(false);
+  const fetchSeqRef = useRef(0);
 
   const fetchData = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     try {
       setLoading(true);
       setError(null);
@@ -282,56 +282,33 @@ const EprPwpCertificateAudit = () => {
         selectedCat,
         appliedFrom,
         appliedTo,
+        onlyChanged,
       });
 
       const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+      if (seq !== fetchSeqRef.current) return;
+
       setApiData(json);
       setTotalSnapshots(json.total_snapshots ?? json.data?.length ?? 0);
       setTotalPages(json.total_pages ?? 1);
+      setGrandTotals(
+        json.grand_totals ?? { generated: 0, transferred: 0, available: 0 },
+      );
     } catch (err) {
-      setError(err.message);
+      if (seq === fetchSeqRef.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
-  }, [page, limit, selectedCat, appliedFrom, appliedTo]);
+  }, [baseURL, page, limit, selectedCat, appliedFrom, appliedTo, onlyChanged]);
 
   useEffect(() => {
+    if (!baseURL) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, baseURL]);
 
   const filterState = { selectedCat, onlyChanged };
-
-  // Grand totals across all pages for current filters (category + date + onlyChanged)
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadGrandTotals() {
-      try {
-        setTotalsLoading(true);
-        const snapshots = await fetchAllSnapshots(baseURL, {
-          selectedCat,
-          appliedFrom,
-          appliedTo,
-        });
-        if (cancelled) return;
-        const rows = applyRowFilters(flattenSnapshots(snapshots), filterState);
-        setGrandTotals(summarizeDiffTotals(rows));
-      } catch {
-        if (!cancelled) {
-          setGrandTotals({ generated: 0, transferred: 0, available: 0 });
-        }
-      } finally {
-        if (!cancelled) setTotalsLoading(false);
-      }
-    }
-
-    if (baseURL) loadGrandTotals();
-    return () => {
-      cancelled = true;
-    };
-  }, [baseURL, selectedCat, appliedFrom, appliedTo, onlyChanged]);
 
   // derive rows
   const allRows = apiData?.data ? flattenSnapshots(apiData.data) : [];
@@ -346,6 +323,7 @@ const EprPwpCertificateAudit = () => {
         selectedCat,
         appliedFrom,
         appliedTo,
+        onlyChanged,
       });
       const exportRows = applyRowFilters(
         flattenSnapshots(snapshots),
@@ -673,53 +651,34 @@ const EprPwpCertificateAudit = () => {
                     className="sticky left-0 bg-slate-100 px-4 py-3 text-xs uppercase tracking-wide text-gray-700 whitespace-nowrap"
                   >
                     Grand Total
-                    {totalsLoading && (
-                      <span className="ml-2 font-normal text-gray-500 normal-case">
-                        (calculating…)
-                      </span>
-                    )}
-                    {!totalsLoading && (
-                      <span className="ml-2 font-normal text-gray-500 normal-case">
-                        · {selectedCat}
-                        {appliedFrom || appliedTo
-                          ? ` · ${appliedFrom || "…"} to ${appliedTo || "…"}`
-                          : ""}
-                        {onlyChanged ? " · updated only" : ""}
-                      </span>
-                    )}
+                    <span className="ml-2 font-normal text-gray-500 normal-case">
+                      · {selectedCat}
+                      {appliedFrom || appliedTo
+                        ? ` · ${appliedFrom || "…"} to ${appliedTo || "…"}`
+                        : ""}
+                      {onlyChanged ? " · updated only" : ""}
+                    </span>
                   </td>
                   <td colSpan={2} className="px-3 py-3" />
                   <td className="px-3 py-3 text-center text-center px-4 py-2 text-xs font-semibold text-blue-700 bg-blue-50 border-x border-blue-100 uppercase tracking-wide">
                   Generated Total
-                    {totalsLoading ? (
-                      <span className="text-xs text-gray-400 ml-5">…</span>
-                    ) : (
-                      <span className="ml-2">  
-                        <DiffBadge value={grandTotals.generated} />
-                      </span>
-                    )}
+                    <span className="ml-2">
+                      <DiffBadge value={grandTotals.generated} />
+                    </span>
                   </td>
                   <td colSpan={2} className="px-3 py-3" />
                   <td className="px-3 py-3 text-center text-center px-4 py-2 text-xs font-semibold text-amber-700 bg-amber-50 border-x border-amber-100 uppercase tracking-wide">
                   Transferred Total
-                    {totalsLoading ? (
-                      <span className="text-xs text-gray-400 ml-5">…</span>
-                    ) : (
-                      <span className="ml-2">  
-                        <DiffBadge value={grandTotals.transferred} />
-                      </span>
-                    )}
+                    <span className="ml-2">
+                      <DiffBadge value={grandTotals.transferred} />
+                    </span>
                   </td>
                   <td colSpan={2} className="px-3 py-3" />
                   <td className="px-3 py-3 text-center text-center px-4 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border-x border-emerald-100 uppercase tracking-wide">
                   Available Total
-                    {totalsLoading ? (
-                      <span className="text-xs text-gray-400">…</span>
-                    ) : (
-                      <span className="ml-2">  
-                        <DiffBadge value={grandTotals.available} />
-                      </span>
-                    )}
+                    <span className="ml-2">
+                      <DiffBadge value={grandTotals.available} />
+                    </span>
                   </td>
                 </tr>
               </tbody>
