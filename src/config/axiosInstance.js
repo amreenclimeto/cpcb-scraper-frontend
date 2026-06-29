@@ -1,11 +1,9 @@
 import axios from "axios";
 import { CLIENT_ID, clearSession, getToken } from "../auth/authService";
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const baseURL = apiBaseUrl ? apiBaseUrl : "/api";
+import { getDataApiBaseUrl } from "./apiBaseUrl";
 
 const axiosInstance = axios.create({
-  baseURL,
+  baseURL: getDataApiBaseUrl(),
   timeout: 30000,
 });
 
