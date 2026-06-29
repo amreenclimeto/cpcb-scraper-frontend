@@ -1,12 +1,18 @@
 import "./App.css";
+import { AuthProvider } from "./auth/AuthContext";
 import AppRoutes from "./routes/AppRoutes";
 
-function App() {
+export default function App({ initialAuth = null }) {
+  const initialState = initialAuth
+    ? {
+        user: initialAuth.user,
+        bootstrapped: initialAuth.isAuthenticated,
+      }
+    : null;
+
   return (
-    <>
-     <AppRoutes/>
-    </>
+    <AuthProvider initialState={initialState}>
+      <AppRoutes />
+    </AuthProvider>
   );
 }
-
-export default App;
