@@ -7,6 +7,8 @@ import { exportToExcel } from "../utils/exportExcel";
 import CommonFilters from "../components/CommonFilters";
 import CommonButton from "../components/CommonButton";
 import { formatDate } from "../utils/formatDate";
+import { useAuth } from "../auth/AuthContext";
+import { getToken } from "../auth/authService";
 
 function buildPiboParams({
   search,
@@ -56,6 +58,7 @@ const TableLoader = () => (
 );
 
 const PiboRegisteredList = () => {
+  const { bootstrapped, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("current");
 
   const [search, setSearch] = useState("");
@@ -116,6 +119,8 @@ const PiboRegisteredList = () => {
   const statesKey = selectedStates.join("|");
 
   useEffect(() => {
+    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+
     const loadStateOptions = async () => {
       try {
         const res = await piboService.getPiboRegistered({
@@ -137,7 +142,7 @@ const PiboRegisteredList = () => {
       }
     };
     loadStateOptions();
-  }, []);
+  }, [bootstrapped, isAuthenticated]);
 
   const handleFilterChange = (name, value) => {
     setPageIndex(0);
@@ -162,6 +167,8 @@ const PiboRegisteredList = () => {
   };
 
   const fetchData = useCallback(async () => {
+    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+
     try {
       setLoading(true);
 
@@ -186,6 +193,8 @@ const PiboRegisteredList = () => {
       setLoading(false);
     }
   }, [
+    bootstrapped,
+    isAuthenticated,
     pageIndex,
     pageSize,
     search,

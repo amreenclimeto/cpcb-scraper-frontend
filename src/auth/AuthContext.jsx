@@ -15,7 +15,10 @@ export function AuthProvider({ children, initialState = null }) {
   const [bootstrapped, setBootstrapped] = useState(
     () => initialState?.bootstrapped ?? !authService.getToken(),
   );
-  const [user, setUser] = useState(() => initialState?.user ?? authService.userFromStorage());
+  const [user, setUser] = useState(() => {
+    if (initialState?.user) return initialState.user;
+    return authService.userFromStorage();
+  });
   const started = useRef(false);
 
   useEffect(() => {
@@ -37,12 +40,27 @@ export function AuthProvider({ children, initialState = null }) {
       return;
     }
 
-    void authService.getMe().then((res) => {
+    const fromToken = authService.userFromToken(token);
+    if (fromToken) {
+      authService.setSession(token, fromToken);
+      setUser(fromToken);
+      setBootstrapped(true);
+      authService.refreshSessionInBackground(setUser);
+      return;
+    }
+
+    void authService.getMe({ clearOnFailure: false }).then((res) => {
       if (res?.success) {
         setUser(res.user);
       } else {
-        authService.clearSession();
-        setUser(null);
+        const fromToken = authService.userFromToken(token);
+        if (fromToken) {
+          authService.setSession(token, fromToken);
+          setUser(fromToken);
+        } else {
+          authService.clearSession();
+          setUser(null);
+        }
       }
       setBootstrapped(true);
     });
@@ -86,7 +104,7 @@ export function AuthProvider({ children, initialState = null }) {
       bootstrapped,
       booting: !bootstrapped,
       user,
-      isAuthenticated: Boolean(user),
+      isAuthenticated: Boolean(user) && Boolean(authService.getToken()),
       login,
       logout,
       refreshSession,

@@ -1,14 +1,24 @@
-import { setSession } from "../auth/authService";
+import { setSession, userFromToken } from "../auth/authService";
+
+function readSsoParam(params, key) {
+  const raw = params.get(key);
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 
 /** SSO from climeto-portal — stores token in cpcb_auth_token + cpcb_current_user */
 export function applyClimetoSsoFromUrl() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("climeto_sso") !== "1") return false;
 
-  const token = params.get("token");
+  const token = readSsoParam(params, "token");
   const tokenKey = params.get("tokenKey") || "cpcb_auth_token";
   const userKey = params.get("userKey") || "cpcb_current_user";
-  const currentUser = params.get("currentUser");
+  const currentUser = readSsoParam(params, "currentUser");
 
   if (token && currentUser) {
     try {
@@ -19,7 +29,12 @@ export function applyClimetoSsoFromUrl() {
       localStorage.setItem(userKey, currentUser);
     }
   } else if (token) {
-    localStorage.setItem(tokenKey, token);
+    const fromJwt = userFromToken(token);
+    if (fromJwt) {
+      setSession(token, fromJwt);
+    } else {
+      localStorage.setItem(tokenKey, token);
+    }
   }
 
   ["climeto_sso", "token", "tokenKey", "userKey", "currentUser"].forEach((k) =>

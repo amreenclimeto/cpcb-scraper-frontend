@@ -68,11 +68,48 @@ export function userFromStorage() {
   return null;
 }
 
+function decodeJwtPayload(token) {
+  try {
+    const part = String(token).split(".")[1];
+    if (!part) return null;
+    return JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    return null;
+  }
+}
+
+/** Build session user from climeto JWT when portal omits currentUser */
+export function userFromToken(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.email || !payload?.user_type) return null;
+  const user = {
+    id: payload.id,
+    email: payload.email,
+    user_type: payload.user_type,
+    company_name: payload.company_name,
+  };
+  return isAuditCertificatesUser(user) ? user : null;
+}
+
 /** Sync read after SSO — call from main.jsx before React mounts */
 export function hydrateAuthFromStorage() {
   const token = getToken();
-  const user = userFromStorage();
-  return { token, user, isAuthenticated: Boolean(token && user) };
+  let user = userFromStorage();
+
+  if (token && !user) {
+    const fromToken = userFromToken(token);
+    if (fromToken) {
+      setSession(token, fromToken);
+      user = fromToken;
+    }
+  }
+
+  return {
+    token,
+    user,
+    isAuthenticated: Boolean(token && user),
+    bootstrapped: Boolean(token && user),
+  };
 }
 
 async function parseResponse(res) {
@@ -142,7 +179,7 @@ export async function login({ email, password, force = false }) {
   return { success: true, token, user, msg: data?.msg };
 }
 
-export async function getMe() {
+export async function getMe({ clearOnFailure = true } = {}) {
   const token = getToken();
   if (!token) return { success: false, error: "Not logged in." };
 
@@ -161,7 +198,7 @@ export async function getMe() {
     const user = data?.user || data;
 
     if (!isAuditCertificatesUser(user)) {
-      clearSession();
+      if (clearOnFailure) clearSession();
       return {
         success: false,
         error: "Unauthorized: AUDIT_CERTIFICATES access required.",
@@ -172,7 +209,7 @@ export async function getMe() {
     setSession(token, user);
     return { success: true, user };
   } catch (err) {
-    if (err.status === 401 || err.status === 403) {
+    if (clearOnFailure && (err.status === 401 || err.status === 403)) {
       clearSession();
     }
     return {
@@ -184,9 +221,9 @@ export async function getMe() {
   }
 }
 
-/** Background refresh — does not block UI */
+/** Background refresh — never clears session on failure (SSO / portal flow) */
 export function refreshSessionInBackground(onUser) {
-  void getMe().then((res) => {
+  void getMe({ clearOnFailure: false }).then((res) => {
     if (res?.success && res.user) onUser(res.user);
   });
 }
