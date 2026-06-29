@@ -6,7 +6,7 @@ export default function App({ initialAuth = null }) {
   const initialState = initialAuth
     ? {
         user: initialAuth.user,
-        bootstrapped: initialAuth.isAuthenticated,
+        bootstrapped: initialAuth.bootstrapped ?? initialAuth.isAuthenticated,
       }
     : null;
 

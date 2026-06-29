@@ -28,7 +28,9 @@ axiosInstance.interceptors.response.use(
         url.includes("/auth/login") || url.includes("/auth/me");
       const onLogin =
         typeof window !== "undefined" && window.location.pathname === "/login";
-      if (!isAuthRoute && !onLogin) {
+      const token = getToken();
+      // Only wipe session when token is already gone (SSO race) or on login page
+      if (!isAuthRoute && !onLogin && !token) {
         clearSession();
         if (typeof window !== "undefined") {
           window.location.href = "/login";
