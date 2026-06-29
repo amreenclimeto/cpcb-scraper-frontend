@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Download } from "lucide-react";
 import CommonButton from "../components/CommonButton";
 import { exportToExcel } from "../utils/exportExcel";
+import { dataApiUrl, getAuthenticatedHeaders } from "../config/apiBaseUrl";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-IN"));
@@ -175,7 +176,7 @@ function rowsToExcelData(rows) {
   }));
 }
 
-async function fetchAllSnapshots(baseURL, filters) {
+async function fetchAllSnapshots(filters) {
   const allSnapshots = [];
   let page = 1;
   let totalPages = 1;
@@ -188,7 +189,9 @@ async function fetchAllSnapshots(baseURL, filters) {
       limit: exportPageLimit,
       includeTotals: false,
     });
-    const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
+    const res = await fetch(`${dataApiUrl("/epr-cer/history")}?${params.toString()}`, {
+      headers: getAuthenticatedHeaders(),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     allSnapshots.push(...(json.data || []));
@@ -253,7 +256,6 @@ const EprPwpCertificateAudit = () => {
   const [limit] = useState(10);
   const [totalSnapshots, setTotalSnapshots] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const baseURL = import.meta.env.VITE_API_BASE_URL;
 
   // filters
   const [selectedCat, setSelectedCat] = useState("All");
@@ -285,7 +287,9 @@ const EprPwpCertificateAudit = () => {
         onlyChanged,
       });
 
-      const res = await fetch(`${baseURL}/epr-cer/history?${params.toString()}`);
+      const res = await fetch(`${dataApiUrl("/epr-cer/history")}?${params.toString()}`, {
+        headers: getAuthenticatedHeaders(),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (seq !== fetchSeqRef.current) return;
@@ -301,12 +305,11 @@ const EprPwpCertificateAudit = () => {
     } finally {
       if (seq === fetchSeqRef.current) setLoading(false);
     }
-  }, [baseURL, page, limit, selectedCat, appliedFrom, appliedTo, onlyChanged]);
+  }, [page, limit, selectedCat, appliedFrom, appliedTo, onlyChanged]);
 
   useEffect(() => {
-    if (!baseURL) return;
     fetchData();
-  }, [fetchData, baseURL]);
+  }, [fetchData]);
 
   const filterState = { selectedCat, onlyChanged };
 
@@ -319,7 +322,7 @@ const EprPwpCertificateAudit = () => {
       setExporting(true);
       setError(null);
 
-      const snapshots = await fetchAllSnapshots(baseURL, {
+      const snapshots = await fetchAllSnapshots({
         selectedCat,
         appliedFrom,
         appliedTo,
