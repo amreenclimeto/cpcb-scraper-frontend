@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { getBearerToken } from "../utils/climetoSso";
 
 const SessionLoading = () => (
   <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -18,7 +19,7 @@ export default function ProtectedRoute({ children }) {
     return <SessionLoading />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !getBearerToken()) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 

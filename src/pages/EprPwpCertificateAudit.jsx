@@ -4,7 +4,7 @@ import CommonButton from "../components/CommonButton";
 import { exportToExcel } from "../utils/exportExcel";
 import { dataApiUrl, getAuthenticatedHeaders } from "../config/apiBaseUrl";
 import { useAuth } from "../auth/AuthContext";
-import { getToken } from "../auth/authService";
+import { getBearerToken } from "../utils/climetoSso";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-IN"));
@@ -277,7 +277,7 @@ const EprPwpCertificateAudit = () => {
   const fetchSeqRef = useRef(0);
 
   const fetchData = useCallback(async () => {
-    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+    if (!bootstrapped || !getBearerToken()) return;
 
     const seq = ++fetchSeqRef.current;
     try {

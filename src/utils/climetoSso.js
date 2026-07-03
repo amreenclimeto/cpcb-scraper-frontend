@@ -3,6 +3,9 @@ import { setSession, userFromToken, userFromJwtLenient } from "../auth/authServi
 const TOKEN_KEY = "cpcb_auth_token";
 const USER_KEY = "cpcb_current_user";
 
+const JWT_IN_URL =
+  /[?&#]token=(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/;
+
 /** JWT in query strings: '+' often becomes space — repair before verify/storage */
 export function normalizeSsoToken(raw) {
   if (!raw) return null;
@@ -43,41 +46,41 @@ export function extractSsoQueryString() {
   return "";
 }
 
-/** Regex fallback when URLSearchParams fails on very long / malformed URLs */
+/** Most reliable — match JWT shape in full href (ignores broken & in currentUser JSON) */
 export function extractTokenFromHref() {
+  const href = window.location.href;
+  const jwtMatch = href.match(JWT_IN_URL);
+  if (jwtMatch?.[1]) return normalizeSsoToken(jwtMatch[1]);
+
   const qs = extractSsoQueryString();
   if (qs) {
     const token = new URLSearchParams(qs).get("token");
     if (token) return normalizeSsoToken(token);
   }
 
-  const match = window.location.href.match(/[?&#]token=([^&#]+)/);
-  return match ? normalizeSsoToken(match[1]) : null;
-}
-
-export function parseSsoParams() {
-  const qs = extractSsoQueryString();
-  if (qs) return new URLSearchParams(qs);
-
-  const token = extractTokenFromHref();
-  if (token) {
-    const p = new URLSearchParams();
-    p.set("token", token);
-    p.set("climeto_sso", "1");
-    return p;
-  }
-
   return null;
 }
 
-function cleanSsoFromUrl() {
-  const path = window.location.pathname === "/login" ? "/" : "/";
+export function parseSsoParams() {
+  const token = extractTokenFromHref();
+  if (!token) return null;
+
+  const p = new URLSearchParams(extractSsoQueryString() || "");
+  p.set("token", token);
+  if (!p.get("climeto_sso")) p.set("climeto_sso", "1");
+  return p;
+}
+
+export function cleanSsoFromUrl() {
+  const path =
+    window.location.pathname === "/login" || window.location.pathname === "/sso"
+      ? "/"
+      : window.location.pathname || "/";
   window.history.replaceState({}, "", path);
 }
 
 function persistSsoSession(params) {
-  let token = normalizeSsoToken(params.get("token"));
-  if (!token) token = extractTokenFromHref();
+  const token = extractTokenFromHref() || normalizeSsoToken(params.get("token"));
   if (!token) return false;
 
   const tokenKey = params.get("tokenKey") || TOKEN_KEY;
@@ -90,7 +93,11 @@ function persistSsoSession(params) {
       setSession(token, user);
     } catch {
       localStorage.setItem(tokenKey, token);
-      localStorage.setItem(userKey, currentUser);
+      try {
+        localStorage.setItem(userKey, currentUser);
+      } catch {
+        /* quota */
+      }
     }
   } else {
     const fromJwt = userFromToken(token) || userFromJwtLenient(token);
@@ -104,15 +111,22 @@ function persistSsoSession(params) {
   return true;
 }
 
-/** Idempotent — safe to call from getToken / axios before every API request */
+/** Idempotent — safe before every API request */
 export function ensureClimetoSsoSession() {
+  const href = window.location.href;
+  const hasSso =
+    href.includes("climeto_sso=1") ||
+    href.includes("token=eyJ") ||
+    href.includes("/sso?");
+
+  if (!hasSso && !extractTokenFromHref()) return false;
+
   const params = parseSsoParams();
-  if (!params) return false;
-  if (params.get("climeto_sso") !== "1" && !params.get("token")) return false;
+  if (!params?.get("token")) return false;
 
   try {
     const ok = persistSsoSession(params);
-    if (ok) cleanSsoFromUrl();
+    if (ok && hasSso) cleanSsoFromUrl();
     return ok;
   } catch (err) {
     console.warn("[CPCB SSO] failed to apply session:", err);
@@ -120,7 +134,30 @@ export function ensureClimetoSsoSession() {
   }
 }
 
-/** SSO from climeto-portal — stores token in cpcb_auth_token + cpcb_current_user */
+/** Token for API calls — URL fallback if localStorage empty */
+export function getBearerToken() {
+  ensureClimetoSsoSession();
+  try {
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored) return stored;
+  } catch {
+    /* private mode */
+  }
+  const fromUrl = extractTokenFromHref();
+  if (fromUrl) {
+    try {
+      localStorage.setItem(TOKEN_KEY, fromUrl);
+      const fromJwt = userFromToken(fromUrl) || userFromJwtLenient(fromUrl);
+      if (fromJwt) setSession(fromUrl, fromJwt);
+    } catch {
+      /* ignore */
+    }
+    return fromUrl;
+  }
+  return null;
+}
+
+/** SSO from climeto-portal */
 export function applyClimetoSsoFromUrl() {
   return ensureClimetoSsoSession();
 }

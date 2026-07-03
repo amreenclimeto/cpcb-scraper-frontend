@@ -1,5 +1,5 @@
 import { getToken, CLIENT_ID } from '../auth/authService';
-import { ensureClimetoSsoSession } from '../utils/climetoSso';
+import { getBearerToken } from '../utils/climetoSso';
 
 const CORRECT_DIRECT_API = 'https://api.climetoserver.cloud/api';
 
@@ -45,13 +45,12 @@ export function getDataApiBaseUrl() {
 }
 
 export function getAuthenticatedHeaders(extra = {}) {
-  ensureClimetoSsoSession();
   const headers = {
     'Content-Type': 'application/json',
     'X-Climeto-Client': CLIENT_ID,
     ...extra,
   };
-  const token = getToken();
+  const token = getBearerToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
