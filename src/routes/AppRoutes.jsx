@@ -5,6 +5,7 @@ import PwpRegisteredList from "../pages/PwpRegisteredList";
 import BatteryManagement from "../pages/BatteryManagement";
 import EprPwpCertificateAudit from "../pages/EprPwpCertificateAudit";
 import Login from "../pages/Login";
+import SsoCallback from "../pages/SsoCallback";
 import ProtectedRoute from "./ProtectedRoute";
 import GuestRoute from "./GuestRoute";
 
@@ -12,6 +13,11 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route
+          path="/sso"
+          element={<SsoCallback />}
+        />
+
         <Route
           path="/login"
           element={
