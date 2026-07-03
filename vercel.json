@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/climeto-api/:path*",
+      "destination": "https://api.climeto.in/api/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://api.climetoserver.cloud/api/:path*"
     },
