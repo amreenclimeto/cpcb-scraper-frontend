@@ -21,26 +21,63 @@ export function normalizeSsoToken(raw) {
   return token;
 }
 
-function parseSsoParams() {
-  const hash = window.location.hash?.replace(/^#/, "").trim();
-  if (hash && (hash.includes("climeto_sso=1") || hash.includes("token="))) {
-    return new URLSearchParams(hash);
-  }
+/** Extract query string from ?search, #hash, or #/path?query */
+export function extractSsoQueryString() {
   const search = window.location.search?.replace(/^\?/, "").trim();
-  if (search && (search.includes("climeto_sso=1") || search.includes("token="))) {
-    return new URLSearchParams(search);
+  if (search && (search.includes("token=") || search.includes("climeto_sso=1"))) {
+    return search;
   }
+
+  const hash = window.location.hash?.replace(/^#/, "").trim();
+  if (!hash) return "";
+
+  const qInHash = hash.indexOf("?");
+  if (qInHash !== -1) {
+    return hash.slice(qInHash + 1);
+  }
+
+  if (hash.includes("token=") || hash.includes("climeto_sso=1") || hash.includes("&")) {
+    return hash;
+  }
+
+  return "";
+}
+
+/** Regex fallback when URLSearchParams fails on very long / malformed URLs */
+export function extractTokenFromHref() {
+  const qs = extractSsoQueryString();
+  if (qs) {
+    const token = new URLSearchParams(qs).get("token");
+    if (token) return normalizeSsoToken(token);
+  }
+
+  const match = window.location.href.match(/[?&#]token=([^&#]+)/);
+  return match ? normalizeSsoToken(match[1]) : null;
+}
+
+export function parseSsoParams() {
+  const qs = extractSsoQueryString();
+  if (qs) return new URLSearchParams(qs);
+
+  const token = extractTokenFromHref();
+  if (token) {
+    const p = new URLSearchParams();
+    p.set("token", token);
+    p.set("climeto_sso", "1");
+    return p;
+  }
+
   return null;
 }
 
 function cleanSsoFromUrl() {
-  const path =
-    window.location.pathname === "/login" ? "/" : window.location.pathname;
+  const path = window.location.pathname === "/login" ? "/" : "/";
   window.history.replaceState({}, "", path);
 }
 
 function persistSsoSession(params) {
-  const token = normalizeSsoToken(params.get("token"));
+  let token = normalizeSsoToken(params.get("token"));
+  if (!token) token = extractTokenFromHref();
   if (!token) return false;
 
   const tokenKey = params.get("tokenKey") || TOKEN_KEY;
