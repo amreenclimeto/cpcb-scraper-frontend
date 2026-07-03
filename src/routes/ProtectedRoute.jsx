@@ -1,6 +1,5 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { getToken } from "../auth/authService";
 
 const SessionLoading = () => (
   <div className="flex min-h-screen items-center justify-center bg-gray-50">
@@ -14,9 +13,8 @@ const SessionLoading = () => (
 export default function ProtectedRoute({ children }) {
   const { bootstrapped, isAuthenticated } = useAuth();
   const location = useLocation();
-  const hasToken = Boolean(getToken());
 
-  if (!bootstrapped && hasToken) {
+  if (!bootstrapped) {
     return <SessionLoading />;
   }
 

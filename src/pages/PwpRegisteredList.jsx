@@ -7,6 +7,8 @@ import CommonFilters from "../components/CommonFilters";
 import CommonButton from "../components/CommonButton";
 import { pwpService } from "../services/pwpService";
 import { formatDate } from "../utils/formatDate";
+import { useAuth } from "../auth/AuthContext";
+import { getToken } from "../auth/authService";
 
 function buildPwpParams({
   search,
@@ -43,6 +45,7 @@ function buildPwpParams({
 }
 
 const PwpRegisteredList = () => {
+  const { bootstrapped, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("current");
 
   const [search, setSearch] = useState("");
@@ -96,6 +99,8 @@ const PwpRegisteredList = () => {
   const statesKey = selectedStates.join("|");
 
   useEffect(() => {
+    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+
     const loadStateOptions = async () => {
       try {
         const res = await pwpService.getPwpData({
@@ -116,7 +121,7 @@ const PwpRegisteredList = () => {
       }
     };
     loadStateOptions();
-  }, []);
+  }, [bootstrapped, isAuthenticated]);
 
   const handleFilterChange = (name, value) => {
     setPageIndex(0);
@@ -144,6 +149,8 @@ const PwpRegisteredList = () => {
   };
 
   const fetchData = useCallback(async () => {
+    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+
     try {
       setLoading(true);
 
@@ -166,7 +173,7 @@ const PwpRegisteredList = () => {
     } finally {
       setLoading(false);
     }
-  }, [pageIndex, pageSize, search, activeTab, fromDate, toDate, statesKey]);
+  }, [bootstrapped, isAuthenticated, pageIndex, pageSize, search, activeTab, fromDate, toDate, statesKey]);
 
   useEffect(() => {
     fetchData();

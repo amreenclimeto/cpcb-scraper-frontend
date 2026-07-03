@@ -1,4 +1,4 @@
-import { setSession, userFromToken } from "../auth/authService";
+import { setSession, userFromToken, userFromJwtLenient } from "../auth/authService";
 
 function readSsoParam(params, key) {
   const raw = params.get(key);
@@ -29,7 +29,7 @@ export function applyClimetoSsoFromUrl() {
       localStorage.setItem(userKey, currentUser);
     }
   } else if (token) {
-    const fromJwt = userFromToken(token);
+    const fromJwt = userFromToken(token) || userFromJwtLenient(token);
     if (fromJwt) {
       setSession(token, fromJwt);
     } else {

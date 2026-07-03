@@ -15,16 +15,15 @@ export function isAuditCertificatesUser(user) {
 }
 
 function authApiRoot() {
-  if (import.meta.env.DEV) {
-    const override = import.meta.env.VITE_AUTH_API_BASE_URL;
-    if (override) return String(override).replace(/\/$/, "");
+  const override = import.meta.env.VITE_AUTH_API_BASE_URL;
+  if (override) return String(override).replace(/\/$/, "");
+
+  // Same-origin proxy on Vercel (vercel.json → api.climeto.in) — avoids CORS + session races
+  if (import.meta.env.PROD) {
     return "/climeto-api";
   }
-  const base =
-    import.meta.env.VITE_AUTH_API_BASE_URL ||
-    import.meta.env.VITE_CLIMETO_API_BASE_URL ||
-    "https://api.climeto.in/api";
-  return String(base).replace(/\/$/, "");
+
+  return "/climeto-api";
 }
 
 export function getToken() {
@@ -78,17 +77,25 @@ function decodeJwtPayload(token) {
   }
 }
 
-/** Build session user from climeto JWT when portal omits currentUser */
-export function userFromToken(token) {
-  const payload = decodeJwtPayload(token);
+function userFromJwtPayload(payload) {
   if (!payload?.email || !payload?.user_type) return null;
-  const user = {
+  return {
     id: payload.id,
     email: payload.email,
     user_type: payload.user_type,
     company_name: payload.company_name,
   };
-  return isAuditCertificatesUser(user) ? user : null;
+}
+
+/** Build session user from climeto JWT when portal omits currentUser */
+export function userFromToken(token) {
+  const user = userFromJwtPayload(decodeJwtPayload(token));
+  return user && isAuditCertificatesUser(user) ? user : null;
+}
+
+/** JWT user without role gate — used to keep portal SSO session when /auth/me is slow */
+export function userFromJwtLenient(token) {
+  return userFromJwtPayload(decodeJwtPayload(token));
 }
 
 /** Sync read after SSO — call from main.jsx before React mounts */
@@ -97,18 +104,21 @@ export function hydrateAuthFromStorage() {
   let user = userFromStorage();
 
   if (token && !user) {
-    const fromToken = userFromToken(token);
+    const fromToken = userFromToken(token) || userFromJwtLenient(token);
     if (fromToken) {
       setSession(token, fromToken);
-      user = fromToken;
+      user = isAuditCertificatesUser(fromToken) ? fromToken : userFromStorage();
     }
   }
 
+  const ready = Boolean(token && user && isAuditCertificatesUser(user));
+
   return {
     token,
-    user,
-    isAuthenticated: Boolean(token && user),
-    bootstrapped: Boolean(token && user),
+    user: ready ? user : null,
+    isAuthenticated: ready,
+    // Block data APIs until AuthContext finishes validating token (portal SSO race fix)
+    bootstrapped: !token || ready,
   };
 }
 
