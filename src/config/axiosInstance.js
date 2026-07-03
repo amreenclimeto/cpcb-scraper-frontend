@@ -1,6 +1,7 @@
 import axios from "axios";
 import { CLIENT_ID, clearSession, getToken } from "../auth/authService";
 import { getDataApiBaseUrl } from "./apiBaseUrl";
+import { ensureClimetoSsoSession } from "../utils/climetoSso";
 
 const axiosInstance = axios.create({
   baseURL: getDataApiBaseUrl(),
@@ -8,6 +9,7 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
+  ensureClimetoSsoSession();
   const token = getToken();
   if (token) {
     config.headers = config.headers || {};

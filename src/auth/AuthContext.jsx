@@ -49,6 +49,15 @@ export function AuthProvider({ children, initialState = null }) {
       return;
     }
 
+    const lenient = authService.userFromJwtLenient(token);
+    if (lenient && authService.isAuditCertificatesUser(lenient)) {
+      authService.setSession(token, lenient);
+      setUser(lenient);
+      setBootstrapped(true);
+      authService.refreshSessionInBackground(setUser);
+      return;
+    }
+
     void authService.getMe({ clearOnFailure: false }).then((res) => {
       if (res?.success) {
         setUser(res.user);
