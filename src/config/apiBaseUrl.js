@@ -30,6 +30,7 @@ export function getDataApiBaseUrl() {
 
   if (
     normalized.includes('climeto-server.cloud') ||
+    normalized.includes('climeto.server.cloud') ||
     (normalized.includes('climetoserver') && normalized !== CORRECT_DIRECT_API)
   ) {
     console.warn(

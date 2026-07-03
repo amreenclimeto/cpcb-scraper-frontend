@@ -3,6 +3,8 @@ import { Download } from "lucide-react";
 import CommonButton from "../components/CommonButton";
 import { exportToExcel } from "../utils/exportExcel";
 import { dataApiUrl, getAuthenticatedHeaders } from "../config/apiBaseUrl";
+import { useAuth } from "../auth/AuthContext";
+import { getToken } from "../auth/authService";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-IN"));
@@ -246,6 +248,7 @@ const Skeleton = () => (
 
 // ─── main component ──────────────────────────────────────────────────────────
 const EprPwpCertificateAudit = () => {
+  const { bootstrapped, isAuthenticated } = useAuth();
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -274,6 +277,8 @@ const EprPwpCertificateAudit = () => {
   const fetchSeqRef = useRef(0);
 
   const fetchData = useCallback(async () => {
+    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+
     const seq = ++fetchSeqRef.current;
     try {
       setLoading(true);
@@ -305,7 +310,7 @@ const EprPwpCertificateAudit = () => {
     } finally {
       if (seq === fetchSeqRef.current) setLoading(false);
     }
-  }, [page, limit, selectedCat, appliedFrom, appliedTo, onlyChanged]);
+  }, [bootstrapped, isAuthenticated, page, limit, selectedCat, appliedFrom, appliedTo, onlyChanged]);
 
   useEffect(() => {
     fetchData();

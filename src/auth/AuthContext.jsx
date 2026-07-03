@@ -53,13 +53,13 @@ export function AuthProvider({ children, initialState = null }) {
       if (res?.success) {
         setUser(res.user);
       } else {
-        const fromToken = authService.userFromToken(token);
-        if (fromToken) {
-          authService.setSession(token, fromToken);
-          setUser(fromToken);
-        } else {
-          authService.clearSession();
-          setUser(null);
+        const fallback =
+          authService.getStoredUser() ||
+          authService.userFromToken(token) ||
+          authService.userFromJwtLenient(token);
+        if (fallback && authService.isAuditCertificatesUser(fallback)) {
+          authService.setSession(token, fallback);
+          setUser(fallback);
         }
       }
       setBootstrapped(true);
