@@ -8,7 +8,7 @@ import CommonFilters from "../components/CommonFilters";
 import CommonButton from "../components/CommonButton";
 import { formatDate } from "../utils/formatDate";
 import { useAuth } from "../auth/AuthContext";
-import { getToken } from "../auth/authService";
+import { getBearerToken } from "../utils/climetoSso";
 
 function buildPiboParams({
   search,
@@ -119,7 +119,7 @@ const PiboRegisteredList = () => {
   const statesKey = selectedStates.join("|");
 
   useEffect(() => {
-    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+    if (!bootstrapped || !getBearerToken()) return;
 
     const loadStateOptions = async () => {
       try {
@@ -167,7 +167,7 @@ const PiboRegisteredList = () => {
   };
 
   const fetchData = useCallback(async () => {
-    if (!bootstrapped || !isAuthenticated || !getToken()) return;
+    if (!bootstrapped || !getBearerToken()) return;
 
     try {
       setLoading(true);

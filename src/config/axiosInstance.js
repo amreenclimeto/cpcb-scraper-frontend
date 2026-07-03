@@ -1,7 +1,7 @@
 import axios from "axios";
-import { CLIENT_ID, clearSession, getToken } from "../auth/authService";
+import { CLIENT_ID, clearSession } from "../auth/authService";
 import { getDataApiBaseUrl } from "./apiBaseUrl";
-import { ensureClimetoSsoSession } from "../utils/climetoSso";
+import { getBearerToken } from "../utils/climetoSso";
 
 const axiosInstance = axios.create({
   baseURL: getDataApiBaseUrl(),
@@ -9,8 +9,7 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
-  ensureClimetoSsoSession();
-  const token = getToken();
+  const token = getBearerToken();
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -30,7 +29,7 @@ axiosInstance.interceptors.response.use(
         url.includes("/auth/login") || url.includes("/auth/me");
       const onLogin =
         typeof window !== "undefined" && window.location.pathname === "/login";
-      const token = getToken();
+      const token = getBearerToken();
       // Only wipe session when token is already gone (SSO race) or on login page
       if (!isAuthRoute && !onLogin && !token) {
         clearSession();

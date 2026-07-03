@@ -8,53 +8,38 @@
   </head>
   <body>
     <div id="root"></div>
-    <!-- Runs before React — capture portal SSO token from /sso? or ?climeto_sso=1& -->
     <script>
       (function () {
         try {
           var TOKEN_KEY = "cpcb_auth_token";
           var USER_KEY = "cpcb_current_user";
+          var href = window.location.href;
+          if (href.indexOf("token=") === -1 && href.indexOf("climeto_sso=1") === -1) return;
 
-          function normalizeToken(raw) {
-            if (!raw) return null;
-            var t = raw;
-            try { t = decodeURIComponent(t); } catch (e) {}
-            if (t.indexOf(" ") !== -1 && t.indexOf(".") !== -1) {
-              var parts = t.split(".");
-              if (parts.length === 3) {
-                t = parts.map(function (p) { return p.replace(/ /g, "+"); }).join(".");
-              }
-            }
-            return t;
-          }
-
-          function queryFromUrl() {
-            var search = (window.location.search || "").replace(/^\?/, "");
-            if (search && (search.indexOf("token=") !== -1 || search.indexOf("climeto_sso=1") !== -1)) {
-              return search;
-            }
-            var hash = (window.location.hash || "").replace(/^#/, "");
-            if (!hash) return "";
-            var qi = hash.indexOf("?");
-            if (qi !== -1) return hash.slice(qi + 1);
-            if (hash.indexOf("token=") !== -1 || hash.indexOf("climeto_sso=1") !== -1) return hash;
-            return "";
-          }
-
-          var qs = queryFromUrl();
-          var token = qs ? new URLSearchParams(qs).get("token") : null;
-          if (!token) {
-            var m = window.location.href.match(/[?&#]token=([^&#]+)/);
-            token = m ? m[1] : null;
-          }
-          token = normalizeToken(token);
+          var m = href.match(/[?&#]token=(eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/);
+          var token = m ? m[1] : null;
           if (!token) return;
 
-          var p = qs ? new URLSearchParams(qs) : new URLSearchParams();
-          localStorage.setItem(p.get("tokenKey") || TOKEN_KEY, token);
-          var user = p.get("currentUser");
-          if (user) localStorage.setItem(p.get("userKey") || USER_KEY, user);
-        } catch (e) { /* ignore */ }
+          if (token.indexOf(" ") !== -1) {
+            var parts = token.split(".");
+            if (parts.length === 3) {
+              token = parts.map(function (p) { return p.replace(/ /g, "+"); }).join(".");
+            }
+          }
+
+          localStorage.setItem(TOKEN_KEY, token);
+
+          var qs = (window.location.search || "").replace(/^\?/, "");
+          if (qs) {
+            var p = new URLSearchParams(qs);
+            var user = p.get("currentUser");
+            if (user) localStorage.setItem(p.get("userKey") || USER_KEY, user);
+          }
+
+          var path = window.location.pathname;
+          if (path === "/login" || path === "/sso") path = "/";
+          window.history.replaceState({}, "", path);
+        } catch (e) {}
       })();
     </script>
     <script type="module" src="/src/main.jsx"></script>

@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import * as authService from "./authService";
+import { getBearerToken } from "../utils/climetoSso";
 
 const AuthContext = createContext(null);
 
@@ -25,7 +26,7 @@ export function AuthProvider({ children, initialState = null }) {
     if (started.current) return;
     started.current = true;
 
-    const token = authService.getToken();
+    const token = getBearerToken() || authService.getToken();
     if (!token) {
       setUser(null);
       setBootstrapped(true);
@@ -97,7 +98,7 @@ export function AuthProvider({ children, initialState = null }) {
       return true;
     }
 
-    const res = await authService.getMe();
+    const res = await authService.getMe({ clearOnFailure: false });
     if (res?.success) {
       setUser(res.user);
       setBootstrapped(true);
@@ -113,7 +114,7 @@ export function AuthProvider({ children, initialState = null }) {
       bootstrapped,
       booting: !bootstrapped,
       user,
-      isAuthenticated: Boolean(user) && Boolean(authService.getToken()),
+      isAuthenticated: Boolean(user) && Boolean(getBearerToken() || authService.getToken()),
       login,
       logout,
       refreshSession,
