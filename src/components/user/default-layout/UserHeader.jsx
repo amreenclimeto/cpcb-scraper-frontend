@@ -1,6 +1,7 @@
 import React from "react";
 import { LogOut, Menu } from "lucide-react";
 import { useAuth } from "../../../auth/AuthContext";
+import PortalSwitcher from "../../PortalSwitcher";
 
 const UserHeader = React.memo(({ toggleSidebar }) => {
   const { user, logout } = useAuth();
@@ -36,6 +37,7 @@ const UserHeader = React.memo(({ toggleSidebar }) => {
             <p className="text-[11px] font-mono text-gray-500">{user.user_type}</p>
           </div>
         ) : null}
+        <PortalSwitcher />
         <button
           type="button"
           onClick={handleLogout}
